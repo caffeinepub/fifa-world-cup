@@ -1,5 +1,4 @@
-import { Input } from "@/components/ui/input";
-import { Eye, EyeOff, HelpCircle, RefreshCw, UserPlus } from "lucide-react";
+import { Eye, EyeOff, RefreshCw, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -56,6 +55,7 @@ export default function AuthPage({
       toast.error("Invalid phone number or password.");
       return;
     }
+    toast.success("Login successful! Welcome back.");
     onLogin();
   };
 
@@ -86,13 +86,15 @@ export default function AuthPage({
       toast.error("This phone number is already registered.");
       return;
     }
+    // Save registration details to localStorage
     localStorage.setItem("pb_phone", phone);
     localStorage.setItem("pb_pwd_hash", btoa(password));
     localStorage.setItem("pb_withdrawal_pwd", btoa(withdrawalPassword));
     localStorage.setItem("pb_referral", referralCode);
     sessionStorage.removeItem("referralCode");
-    toast.success("Account created successfully! Please login.");
-    onSwitchView("login");
+    // Auto-login immediately after registration
+    toast.success("Account created successfully! Welcome to FIFA World Cup.");
+    onLogin();
   };
 
   const inputClass =
@@ -144,8 +146,6 @@ export default function AuthPage({
         }}
       >
         <HeaderBanner />
-
-        {/* Tabs */}
         <div className="mx-4 -mt-4 relative z-10">
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex border-b border-blue-100">
@@ -166,10 +166,8 @@ export default function AuthPage({
                 <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-blue-600 rounded-full" />
               </button>
             </div>
-
             <form onSubmit={handleRegister} className="p-5 space-y-3">
               {phoneInputWrap}
-
               <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-5 focus-within:ring-2 focus-within:ring-blue-500">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -191,7 +189,6 @@ export default function AuthPage({
                   )}
                 </button>
               </div>
-
               <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-5 focus-within:ring-2 focus-within:ring-blue-500">
                 <input
                   type={showConfirm ? "text" : "password"}
@@ -213,7 +210,6 @@ export default function AuthPage({
                   )}
                 </button>
               </div>
-
               <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-5 focus-within:ring-2 focus-within:ring-blue-500">
                 <input
                   type={showWithdrawal ? "text" : "password"}
@@ -235,7 +231,6 @@ export default function AuthPage({
                   )}
                 </button>
               </div>
-
               <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-4 gap-2 focus-within:ring-2 focus-within:ring-blue-500">
                 <UserPlus className="w-4 h-4 text-blue-500 shrink-0" />
                 <input
@@ -255,7 +250,6 @@ export default function AuthPage({
                   <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
-
               <button
                 type="submit"
                 className="w-full h-12 rounded-full font-bold text-white text-sm tracking-widest uppercase"
@@ -265,7 +259,6 @@ export default function AuthPage({
                 REGISTER
               </button>
             </form>
-
             <p className="text-center text-sm text-blue-500 pb-5">
               Already have an account?{" "}
               <button
@@ -278,7 +271,6 @@ export default function AuthPage({
             </p>
           </div>
         </div>
-
         <div className="flex-1" />
         <footer className="text-center py-4 text-xs text-white/40 px-4">
           © {new Date().getFullYear()} FIFA 2026 Earn Platform
@@ -297,8 +289,6 @@ export default function AuthPage({
       }}
     >
       <HeaderBanner />
-
-      {/* Tabs + Form Card */}
       <div className="mx-4 -mt-4 relative z-10">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           <div className="flex border-b border-blue-100">
@@ -319,10 +309,8 @@ export default function AuthPage({
               Register
             </button>
           </div>
-
           <form onSubmit={handleLogin} className="p-5 space-y-3">
             {phoneInputWrap}
-
             <input
               type="password"
               value={password}
@@ -331,7 +319,6 @@ export default function AuthPage({
               className={inputClass}
               data-ocid="login.password"
             />
-
             <button
               type="submit"
               className="w-full h-12 rounded-full font-bold text-white text-sm tracking-widest uppercase"
@@ -341,7 +328,6 @@ export default function AuthPage({
               LOGIN
             </button>
           </form>
-
           <p className="text-center text-sm text-blue-500 pb-5">
             No account?{" "}
             <button
@@ -355,7 +341,6 @@ export default function AuthPage({
           </p>
         </div>
       </div>
-
       <div className="flex-1" />
       <footer className="text-center py-4 text-xs text-white/40 px-4">
         © {new Date().getFullYear()} FIFA 2026 Earn Platform
