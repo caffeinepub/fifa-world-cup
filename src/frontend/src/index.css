@@ -63,11 +63,6 @@
   }
 }
 
-/*
-  CSS cascade trick: override custom properties inside white card surfaces
-  so that text-foreground, bg-secondary, border-border etc. all resolve
-  to light-theme values automatically — no per-page changes needed.
-*/
 .bg-card,
 .bg-popover {
   --foreground: 0.15 0.05 264;
@@ -80,7 +75,6 @@
   --accent-foreground: 0.15 0.05 264;
   --border: 0.88 0.02 264;
   --input: 0.88 0.02 264;
-  /* Keep gold primary visible on white cards */
   --primary: 0.72 0.18 60;
   --primary-foreground: 0.13 0.04 264;
 }
@@ -95,35 +89,4 @@
   .bottom-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .glow-blue {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), 0 0 40px
-      rgba(59, 130, 246, 0.3);
-  }
-  .glow-gold {
-    box-shadow: 0 0 16px rgba(255, 215, 0, 0.5), 0 0 32px rgba(255, 215, 0, 0.2);
-  }
-  .neon-text-gold {
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px
-      rgba(255, 215, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.2);
-  }
-  .neon-text-blue {
-    text-shadow: 0 0 10px rgba(96, 165, 250, 0.8), 0 0 20px
-      rgba(96, 165, 250, 0.4);
-  }
-}
-
-@keyframes pulse-glow {
-  0%,
-  100% {
-    box-shadow: 0 4px 20px rgba(184, 134, 11, 0.6), 0 0 30px
-      rgba(255, 215, 0, 0.3);
-  }
-  50% {
-    box-shadow: 0 4px 30px rgba(184, 134, 11, 0.9), 0 0 60px
-      rgba(255, 215, 0, 0.6);
-  }
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
 }

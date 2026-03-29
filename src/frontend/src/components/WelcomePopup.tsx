@@ -26,9 +26,7 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
           style={{
             background:
               "linear-gradient(160deg, #0a1628 0%, #1a3a6b 60%, #0d2244 100%)",
-            border: "1px solid rgba(59,130,246,0.6)",
-            boxShadow:
-              "0 0 40px rgba(59,130,246,0.4), 0 0 80px rgba(59,130,246,0.2), inset 0 0 60px rgba(10,22,40,0.8)",
+            border: "1px solid rgba(59,130,246,0.4)",
           }}
           initial={{ scale: 0.85, opacity: 0, y: 30 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -41,18 +39,12 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
             className="h-1 w-full"
             style={{
               background: "linear-gradient(90deg, #d4af37, #ffd700, #d4af37)",
-              boxShadow: "0 0 8px rgba(255,215,0,0.6)",
             }}
           />
 
           <div className="px-6 py-8 text-center">
             {/* Trophy icon */}
-            <div
-              className="text-6xl mb-4"
-              style={{ filter: "drop-shadow(0 0 16px rgba(255,215,0,0.7))" }}
-            >
-              🏆
-            </div>
+            <div className="text-6xl mb-4">🏆</div>
 
             {/* Star decoration */}
             <div className="flex justify-center gap-1 mb-4">
@@ -71,7 +63,7 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
               Welcome to
             </h1>
             <h2
-              className="text-3xl font-black mb-1 uppercase tracking-wider neon-text-gold"
+              className="text-3xl font-black mb-1 uppercase tracking-wider"
               style={{
                 background: "linear-gradient(90deg, #d4af37, #ffd700, #d4af37)",
                 WebkitBackgroundClip: "text",
@@ -88,7 +80,6 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
               style={{
                 background:
                   "linear-gradient(90deg, transparent, #d4af37, transparent)",
-                boxShadow: "0 0 6px rgba(255,215,0,0.4)",
               }}
             />
 
@@ -109,12 +100,10 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-3.5 rounded-full font-bold text-white text-base uppercase tracking-widest transition-all duration-200 active:scale-95 animate-pulse-glow"
+              className="w-full py-3.5 rounded-full font-bold text-white text-base uppercase tracking-widest transition-all duration-200 active:scale-95"
               style={{
                 background:
                   "linear-gradient(135deg, #1565c0 0%, #1976d2 50%, #42a5f5 100%)",
-                boxShadow:
-                  "0 4px 25px rgba(30,136,229,0.8), 0 0 50px rgba(59,130,246,0.4)",
               }}
               data-ocid="welcome.primary_button"
             >
@@ -127,7 +116,6 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
             className="h-1 w-full"
             style={{
               background: "linear-gradient(90deg, #d4af37, #ffd700, #d4af37)",
-              boxShadow: "0 0 8px rgba(255,215,0,0.6)",
             }}
           />
         </motion.div>

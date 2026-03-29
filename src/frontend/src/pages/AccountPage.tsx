@@ -94,7 +94,7 @@ export default function AccountPage({
           <MenuItem
             icon={"💳"}
             label="Personal Information"
-            onClick={() => toast.info("Coming soon")}
+            onClick={() => onNavigate("personal-info")}
             ocid="account.personal.button"
           />
           <MenuItem

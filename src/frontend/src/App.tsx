@@ -3,17 +3,21 @@ import { useState } from "react";
 import { useEffect } from "react";
 import BottomNav from "./components/BottomNav";
 import Header from "./components/Header";
+import TelegramPopup from "./components/TelegramPopup";
 import WelcomePopup from "./components/WelcomePopup";
 import { useUserProfile } from "./hooks/useQueries";
 import AccountPage from "./pages/AccountPage";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
 import BankBindingPage from "./pages/BankBindingPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import HomePage from "./pages/HomePage";
+import PersonalInfoPage from "./pages/PersonalInfoPage";
 import RechargePage from "./pages/RechargePage";
 import SharePage from "./pages/SharePage";
 import TeamPage from "./pages/TeamPage";
 import WithdrawalPage from "./pages/WithdrawalPage";
+import WithdrawalPasswordPage from "./pages/WithdrawalPasswordPage";
 
 export type Page =
   | "home"
@@ -23,7 +27,10 @@ export type Page =
   | "recharge"
   | "withdrawal"
   | "admin"
-  | "bank";
+  | "bank"
+  | "personal-info"
+  | "change-password"
+  | "withdrawal-password";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(
@@ -35,6 +42,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("home");
   const [authView, setAuthView] = useState<"login" | "register">("login");
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showTelegram, setShowTelegram] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -48,10 +56,22 @@ export default function App() {
     if (isLoggedIn && !sessionStorage.getItem("welcomeShown")) {
       setShowWelcome(true);
       sessionStorage.setItem("welcomeShown", "1");
+    } else if (isLoggedIn && !sessionStorage.getItem("telegramShown")) {
+      setShowTelegram(true);
     }
   }, [isLoggedIn]);
 
-  const handleCloseWelcome = () => setShowWelcome(false);
+  const handleCloseWelcome = () => {
+    setShowWelcome(false);
+    if (!sessionStorage.getItem("telegramShown")) {
+      setTimeout(() => setShowTelegram(true), 400);
+    }
+  };
+
+  const handleCloseTelegram = () => {
+    sessionStorage.setItem("telegramShown", "1");
+    setShowTelegram(false);
+  };
 
   if (!isLoggedIn) {
     return (
@@ -80,7 +100,6 @@ export default function App() {
             onNavigate={setCurrentPage}
             onLogout={() => {
               localStorage.removeItem("pb_current_phone");
-              // legacy cleanup
               localStorage.removeItem("pb_phone");
               localStorage.removeItem("pb_pwd_hash");
               setIsLoggedIn(false);
@@ -95,6 +114,23 @@ export default function App() {
         return <AdminPage onBack={() => setCurrentPage("account")} />;
       case "bank":
         return <BankBindingPage onBack={() => setCurrentPage("account")} />;
+      case "personal-info":
+        return (
+          <PersonalInfoPage
+            onNavigate={setCurrentPage}
+            onBack={() => setCurrentPage("account")}
+          />
+        );
+      case "change-password":
+        return (
+          <ChangePasswordPage onBack={() => setCurrentPage("personal-info")} />
+        );
+      case "withdrawal-password":
+        return (
+          <WithdrawalPasswordPage
+            onBack={() => setCurrentPage("personal-info")}
+          />
+        );
       default:
         return <HomePage onNavigate={setCurrentPage} />;
     }
@@ -115,6 +151,9 @@ export default function App() {
       </div>
       <Toaster position="top-center" />
       {showWelcome && <WelcomePopup onClose={handleCloseWelcome} />}
+      {showTelegram && !showWelcome && (
+        <TelegramPopup onClose={handleCloseTelegram} />
+      )}
     </div>
   );
 }

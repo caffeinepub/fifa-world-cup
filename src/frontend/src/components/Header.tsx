@@ -8,19 +8,12 @@ export default function Header() {
       style={{
         background: "linear-gradient(135deg, #0a1628 0%, #1565c0 100%)",
         borderBottom: "2px solid #FFD700",
-        boxShadow:
-          "0 0 12px rgba(255,215,0,0.5), 0 2px 20px rgba(59,130,246,0.4)",
       }}
     >
       <div className="flex items-center gap-2">
+        <span className="text-2xl">⚽</span>
         <span
-          className="text-2xl"
-          style={{ filter: "drop-shadow(0 0 6px rgba(255,255,255,0.6))" }}
-        >
-          ⚽
-        </span>
-        <span
-          className="neon-text-gold font-extrabold text-lg tracking-widest uppercase"
+          className="font-extrabold text-lg tracking-widest uppercase"
           style={{ color: "#FFD700" }}
         >
           FIFA WORLD CUP 2026
