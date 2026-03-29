@@ -5,7 +5,38 @@ import { toast } from "sonner";
 interface AuthPageProps {
   view: "login" | "register";
   onSwitchView: (view: "login" | "register") => void;
-  onLogin: () => void;
+  onLogin: (phone: string) => void;
+}
+
+interface Account {
+  pwdHash: string;
+  withdrawalPwd: string;
+  referral: string;
+}
+
+function getAccounts(): Record<string, Account> {
+  try {
+    const raw = localStorage.getItem("pb_accounts");
+    const accounts: Record<string, Account> = raw ? JSON.parse(raw) : {};
+    // Migrate old single-account format
+    const oldPhone = localStorage.getItem("pb_phone");
+    const oldHash = localStorage.getItem("pb_pwd_hash");
+    if (oldPhone && oldHash && !accounts[oldPhone]) {
+      accounts[oldPhone] = {
+        pwdHash: oldHash,
+        withdrawalPwd: localStorage.getItem("pb_withdrawal_pwd") || "",
+        referral: localStorage.getItem("pb_referral") || "",
+      };
+      localStorage.setItem("pb_accounts", JSON.stringify(accounts));
+      localStorage.removeItem("pb_phone");
+      localStorage.removeItem("pb_pwd_hash");
+      localStorage.removeItem("pb_withdrawal_pwd");
+      localStorage.removeItem("pb_referral");
+    }
+    return accounts;
+  } catch {
+    return {};
+  }
 }
 
 export default function AuthPage({
@@ -51,23 +82,24 @@ export default function AuthPage({
       toast.error("Phone number and password are required");
       return;
     }
-    const storedPhone = localStorage.getItem("pb_phone");
-    const storedHash = localStorage.getItem("pb_pwd_hash");
-    if (!storedPhone || storedPhone !== phone) {
-      toast.error("Account not found. Please register.");
+    const accounts = getAccounts();
+    const account = accounts[phone.trim()];
+    if (!account) {
+      toast.error("Account not found. Please register first.");
       return;
     }
-    if (storedHash !== btoa(password)) {
-      toast.error("Invalid phone number or password.");
+    if (account.pwdHash !== btoa(password)) {
+      toast.error("Invalid password. Please try again.");
       return;
     }
     if (rememberMe) {
-      localStorage.setItem("pb_remember_phone", phone);
+      localStorage.setItem("pb_remember_phone", phone.trim());
     } else {
       localStorage.removeItem("pb_remember_phone");
     }
+    localStorage.setItem("pb_current_phone", phone.trim());
     toast.success("Login successful! Welcome back.");
-    onLogin();
+    onLogin(phone.trim());
   };
 
   const handleRegister = (e: React.FormEvent) => {
@@ -92,19 +124,22 @@ export default function AuthPage({
       toast.error("Referral code is required");
       return;
     }
-    const existingPhone = localStorage.getItem("pb_phone");
-    if (existingPhone === phone) {
+    const accounts = getAccounts();
+    if (accounts[phone.trim()]) {
       toast.error("This phone number is already registered.");
       return;
     }
-    localStorage.setItem("pb_phone", phone);
-    localStorage.setItem("pb_pwd_hash", btoa(password));
-    localStorage.setItem("pb_withdrawal_pwd", btoa(withdrawalPassword));
-    localStorage.setItem("pb_referral", referralCode);
-    localStorage.setItem("pb_remember_phone", phone);
+    accounts[phone.trim()] = {
+      pwdHash: btoa(password),
+      withdrawalPwd: btoa(withdrawalPassword),
+      referral: referralCode,
+    };
+    localStorage.setItem("pb_accounts", JSON.stringify(accounts));
+    localStorage.setItem("pb_remember_phone", phone.trim());
+    localStorage.setItem("pb_current_phone", phone.trim());
     sessionStorage.removeItem("referralCode");
     toast.success("Account created successfully! Welcome to FIFA World Cup.");
-    onLogin();
+    onLogin(phone.trim());
   };
 
   const submitBtnStyle = {

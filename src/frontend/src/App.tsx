@@ -27,7 +27,9 @@ export type Page =
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(
-    () => !!localStorage.getItem("pb_phone"),
+    () =>
+      !!localStorage.getItem("pb_current_phone") ||
+      !!localStorage.getItem("pb_phone"),
   );
   const { data: _userProfile } = useUserProfile();
   const [currentPage, setCurrentPage] = useState<Page>("home");
@@ -57,7 +59,7 @@ export default function App() {
         <AuthPage
           view={authView}
           onSwitchView={setAuthView}
-          onLogin={() => setIsLoggedIn(true)}
+          onLogin={(_phone: string) => setIsLoggedIn(true)}
         />
         <Toaster position="top-center" />
       </>
@@ -77,6 +79,8 @@ export default function App() {
           <AccountPage
             onNavigate={setCurrentPage}
             onLogout={() => {
+              localStorage.removeItem("pb_current_phone");
+              // legacy cleanup
               localStorage.removeItem("pb_phone");
               localStorage.removeItem("pb_pwd_hash");
               setIsLoggedIn(false);
