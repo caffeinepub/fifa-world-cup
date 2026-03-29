@@ -16,6 +16,7 @@ export default function AuthPage({
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [withdrawalPassword, setWithdrawalPassword] = useState("");
@@ -32,6 +33,11 @@ export default function AuthPage({
   };
 
   useEffect(() => {
+    const savedPhone = localStorage.getItem("pb_remember_phone");
+    if (savedPhone) {
+      setPhone(savedPhone);
+      setRememberMe(true);
+    }
     const stored = sessionStorage.getItem("referralCode");
     if (stored) setReferralCode(stored);
     const params = new URLSearchParams(window.location.search);
@@ -54,6 +60,11 @@ export default function AuthPage({
     if (storedHash !== btoa(password)) {
       toast.error("Invalid phone number or password.");
       return;
+    }
+    if (rememberMe) {
+      localStorage.setItem("pb_remember_phone", phone);
+    } else {
+      localStorage.removeItem("pb_remember_phone");
     }
     toast.success("Login successful! Welcome back.");
     onLogin();
@@ -86,20 +97,22 @@ export default function AuthPage({
       toast.error("This phone number is already registered.");
       return;
     }
-    // Save registration details to localStorage
     localStorage.setItem("pb_phone", phone);
     localStorage.setItem("pb_pwd_hash", btoa(password));
     localStorage.setItem("pb_withdrawal_pwd", btoa(withdrawalPassword));
     localStorage.setItem("pb_referral", referralCode);
+    localStorage.setItem("pb_remember_phone", phone);
     sessionStorage.removeItem("referralCode");
-    // Auto-login immediately after registration
     toast.success("Account created successfully! Welcome to FIFA World Cup.");
     onLogin();
   };
 
-  const inputClass =
-    "w-full bg-blue-50 border border-blue-200 rounded-full h-12 px-5 text-sm text-blue-900 placeholder:text-blue-400 focus:ring-2 focus:ring-blue-500";
-  const phoneInputWrap = (
+  const submitBtnStyle = {
+    background: "linear-gradient(90deg, #1a56db 0%, #3b82f6 100%)",
+    boxShadow: "0 4px 20px rgba(26,86,219,0.7), 0 0 40px rgba(59,130,246,0.3)",
+  };
+
+  const PhoneInput = () => (
     <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-4 focus-within:ring-2 focus-within:ring-blue-500">
       <span className="text-blue-600 font-semibold text-sm mr-2">+91</span>
       <div className="w-px h-5 bg-blue-200 mr-3" />
@@ -113,11 +126,6 @@ export default function AuthPage({
       />
     </div>
   );
-
-  const submitBtnStyle = {
-    background: "linear-gradient(90deg, #1a56db 0%, #3b82f6 100%)",
-    boxShadow: "0 4px 20px rgba(26,86,219,0.7), 0 0 40px rgba(59,130,246,0.3)",
-  };
 
   const HeaderBanner = () => (
     <div
@@ -167,7 +175,7 @@ export default function AuthPage({
               </button>
             </div>
             <form onSubmit={handleRegister} className="p-5 space-y-3">
-              {phoneInputWrap}
+              <PhoneInput />
               <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-5 focus-within:ring-2 focus-within:ring-blue-500">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -279,7 +287,6 @@ export default function AuthPage({
     );
   }
 
-  // Login view
   return (
     <div
       className="min-h-screen flex flex-col"
@@ -310,15 +317,42 @@ export default function AuthPage({
             </button>
           </div>
           <form onSubmit={handleLogin} className="p-5 space-y-3">
-            {phoneInputWrap}
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              className={inputClass}
-              data-ocid="login.password"
-            />
+            <PhoneInput />
+            <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-5 focus-within:ring-2 focus-within:ring-blue-500">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="flex-1 bg-transparent outline-none text-sm text-blue-900 placeholder:text-blue-400"
+                data-ocid="login.password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-blue-400 ml-2"
+              >
+                {showPassword ? (
+                  <Eye className="w-4 h-4" />
+                ) : (
+                  <EyeOff className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            <div className="flex items-center px-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded accent-blue-600"
+                  data-ocid="login.remember_me"
+                />
+                <span className="text-sm text-blue-600 font-medium">
+                  Remember me
+                </span>
+              </label>
+            </div>
             <button
               type="submit"
               className="w-full h-12 rounded-full font-bold text-white text-sm tracking-widest uppercase"
