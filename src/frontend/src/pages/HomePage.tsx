@@ -24,7 +24,6 @@ import type { InvestmentPlan } from "../backend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAllPlans,
-  useClaimDailyEarnings,
   useCreateInvestment,
   useUserInvestments,
   useUserProfile,
@@ -128,24 +127,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const { data: profile } = useUserProfile();
   const { data: plans, isLoading: plansLoading } = useAllPlans();
   const { data: investments } = useUserInvestments(userId);
-  const claimMutation = useClaimDailyEarnings();
   const [investDialog, setInvestDialog] = useState<InvestmentPlan | null>(null);
   const [investAmount, setInvestAmount] = useState("");
   const createInvestment = useCreateInvestment();
 
   const activePlans = plans?.filter((p) => p.active) ?? [];
   const activeInvestments = investments?.filter((i) => i.active) ?? [];
-
-  const handleClaim = async () => {
-    const result = await claimMutation.mutateAsync();
-    if (result.__kind__ === "ok") {
-      toast.success(`Daily earnings claimed: ₹${result.ok.toFixed(2)}`);
-    } else if (result.__kind__ === "dailyLimitReached") {
-      toast.info("Daily earnings already claimed. Come back tomorrow!");
-    } else {
-      toast.error("Please register first.");
-    }
-  };
 
   const handleInvest = async () => {
     if (!investDialog) return;
@@ -250,42 +237,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <div className="mt-4 flex">
         <BannerSlider />
       </div>
-
-      {/* My Earnings */}
-      <section className="px-4 mt-4">
-        <div className="bg-card rounded-2xl p-4 card-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground">My Earnings</h3>
-            <TrendingUp className="w-4 h-4" style={{ color: "#b8860b" }} />
-          </div>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-secondary rounded-xl p-3">
-              <p className="text-xs text-muted-foreground">Total Earned</p>
-              <p className="font-bold text-foreground text-lg">
-                ₹{(profile?.totalEarned ?? 0).toFixed(2)}
-              </p>
-            </div>
-            <div className="bg-secondary rounded-xl p-3">
-              <p className="text-xs text-muted-foreground">Balance</p>
-              <p className="font-bold text-foreground text-lg">
-                ₹{(profile?.walletBalance ?? 0).toFixed(2)}
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={handleClaim}
-            className="w-full border-0 font-semibold h-10"
-            style={GOLD_BTN_STYLE}
-            disabled={claimMutation.isPending}
-            data-ocid="home.claim.primary_button"
-          >
-            {claimMutation.isPending ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : null}
-            Claim Daily Earnings
-          </Button>
-        </div>
-      </section>
 
       {/* Active Investments */}
       {activeInvestments.length > 0 && (
