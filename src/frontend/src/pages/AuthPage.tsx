@@ -47,7 +47,6 @@ export default function AuthPage({
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [withdrawalPassword, setWithdrawalPassword] = useState("");
@@ -64,10 +63,10 @@ export default function AuthPage({
   };
 
   useEffect(() => {
-    const savedPhone = localStorage.getItem("pb_remember_phone");
+    // Always pre-fill saved phone number
+    const savedPhone = localStorage.getItem("pb_saved_phone");
     if (savedPhone) {
       setPhone(savedPhone);
-      setRememberMe(true);
     }
     const stored = sessionStorage.getItem("referralCode");
     if (stored) setReferralCode(stored);
@@ -92,11 +91,8 @@ export default function AuthPage({
       toast.error("Invalid password. Please try again.");
       return;
     }
-    if (rememberMe) {
-      localStorage.setItem("pb_remember_phone", phone.trim());
-    } else {
-      localStorage.removeItem("pb_remember_phone");
-    }
+    // Always save phone for next login
+    localStorage.setItem("pb_saved_phone", phone.trim());
     localStorage.setItem("pb_current_phone", phone.trim());
     toast.success("Login successful! Welcome back.");
     onLogin(phone.trim());
@@ -135,7 +131,8 @@ export default function AuthPage({
       referral: referralCode,
     };
     localStorage.setItem("pb_accounts", JSON.stringify(accounts));
-    localStorage.setItem("pb_remember_phone", phone.trim());
+    // Always save phone and session after registration
+    localStorage.setItem("pb_saved_phone", phone.trim());
     localStorage.setItem("pb_current_phone", phone.trim());
     sessionStorage.removeItem("referralCode");
     toast.success("Account created successfully! Welcome to FIFA World Cup.");
@@ -147,38 +144,6 @@ export default function AuthPage({
     boxShadow: "0 4px 20px rgba(26,86,219,0.7), 0 0 40px rgba(59,130,246,0.3)",
   };
 
-  const PhoneInput = () => (
-    <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-4 focus-within:ring-2 focus-within:ring-blue-500">
-      <span className="text-blue-600 font-semibold text-sm mr-2">+91</span>
-      <div className="w-px h-5 bg-blue-200 mr-3" />
-      <input
-        type="tel"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="Enter phone number"
-        className="flex-1 bg-transparent outline-none text-sm text-blue-900 placeholder:text-blue-400"
-        data-ocid="auth.phone"
-      />
-    </div>
-  );
-
-  const HeaderBanner = () => (
-    <div
-      className="w-full relative overflow-hidden"
-      style={{
-        background:
-          "linear-gradient(135deg, #0a1628 0%, #1a3a6b 50%, #0d2444 100%)",
-      }}
-    >
-      <img
-        src="/assets/generated/fifa-auth-banner.dim_800x400.jpg"
-        alt="FIFA 2026"
-        className="w-full object-cover"
-        style={{ minHeight: 200, maxHeight: 260 }}
-      />
-    </div>
-  );
-
   if (view === "register") {
     return (
       <div
@@ -188,7 +153,20 @@ export default function AuthPage({
             "linear-gradient(180deg, #0a1628 0%, #0d2444 50%, #1a3a6b 100%)",
         }}
       >
-        <HeaderBanner />
+        <div
+          className="w-full relative overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, #0a1628 0%, #1a3a6b 50%, #0d2444 100%)",
+          }}
+        >
+          <img
+            src="/assets/generated/fifa-auth-banner.dim_800x400.jpg"
+            alt="FIFA 2026"
+            className="w-full object-cover"
+            style={{ minHeight: 200, maxHeight: 260 }}
+          />
+        </div>
         <div className="mx-4 -mt-4 relative z-10">
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex border-b border-blue-100">
@@ -210,7 +188,20 @@ export default function AuthPage({
               </button>
             </div>
             <form onSubmit={handleRegister} className="p-5 space-y-3">
-              <PhoneInput />
+              <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-4 focus-within:ring-2 focus-within:ring-blue-500">
+                <span className="text-blue-600 font-semibold text-sm mr-2">
+                  +91
+                </span>
+                <div className="w-px h-5 bg-blue-200 mr-3" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Enter phone number"
+                  className="flex-1 bg-transparent outline-none text-sm text-blue-900 placeholder:text-blue-400"
+                  data-ocid="auth.phone"
+                />
+              </div>
               <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-5 focus-within:ring-2 focus-within:ring-blue-500">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -330,7 +321,20 @@ export default function AuthPage({
           "linear-gradient(180deg, #0a1628 0%, #0d2444 50%, #1a3a6b 100%)",
       }}
     >
-      <HeaderBanner />
+      <div
+        className="w-full relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, #0a1628 0%, #1a3a6b 50%, #0d2444 100%)",
+        }}
+      >
+        <img
+          src="/assets/generated/fifa-auth-banner.dim_800x400.jpg"
+          alt="FIFA 2026"
+          className="w-full object-cover"
+          style={{ minHeight: 200, maxHeight: 260 }}
+        />
+      </div>
       <div className="mx-4 -mt-4 relative z-10">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           <div className="flex border-b border-blue-100">
@@ -352,7 +356,20 @@ export default function AuthPage({
             </button>
           </div>
           <form onSubmit={handleLogin} className="p-5 space-y-3">
-            <PhoneInput />
+            <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-4 focus-within:ring-2 focus-within:ring-blue-500">
+              <span className="text-blue-600 font-semibold text-sm mr-2">
+                +91
+              </span>
+              <div className="w-px h-5 bg-blue-200 mr-3" />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Enter phone number"
+                className="flex-1 bg-transparent outline-none text-sm text-blue-900 placeholder:text-blue-400"
+                data-ocid="auth.phone"
+              />
+            </div>
             <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-5 focus-within:ring-2 focus-within:ring-blue-500">
               <input
                 type={showPassword ? "text" : "password"}
@@ -373,20 +390,6 @@ export default function AuthPage({
                   <EyeOff className="w-4 h-4" />
                 )}
               </button>
-            </div>
-            <div className="flex items-center px-1">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded accent-blue-600"
-                  data-ocid="login.remember_me"
-                />
-                <span className="text-sm text-blue-600 font-medium">
-                  Remember me
-                </span>
-              </label>
             </div>
             <button
               type="submit"

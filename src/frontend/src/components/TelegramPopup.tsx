@@ -6,7 +6,11 @@ interface TelegramPopupProps {
 
 export default function TelegramPopup({ onClose }: TelegramPopupProps) {
   const handleJoin = () => {
-    window.open("https://t.me/fifaworldcup", "_blank", "noopener,noreferrer");
+    window.open(
+      "https://t.me/fifaworldcup2026h5",
+      "_blank",
+      "noopener,noreferrer",
+    );
     onClose();
   };
 
