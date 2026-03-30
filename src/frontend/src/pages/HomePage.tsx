@@ -6,17 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ChevronRight,
-  Download,
-  Loader2,
-  Radio,
-  TrendingUp,
-  Wallet,
-} from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Page } from "../App";
@@ -28,6 +19,18 @@ import {
   useUserInvestments,
   useUserProfile,
 } from "../hooks/useQueries";
+
+function calcDailyIncome(price: number, dailyReturnPct: number): number {
+  return (price * dailyReturnPct) / 100;
+}
+
+function calcTotalReturn(
+  price: number,
+  dailyReturnPct: number,
+  durationDays: number,
+): number {
+  return calcDailyIncome(price, dailyReturnPct) * durationDays;
+}
 
 interface HomePageProps {
   onNavigate: (page: Page) => void;
@@ -118,40 +121,64 @@ function BannerSlider() {
   );
 }
 
+type ModalState =
+  | { type: "none" }
+  | { type: "insufficient"; plan: InvestmentPlan }
+  | { type: "confirm"; plan: InvestmentPlan };
+
 export default function HomePage({ onNavigate }: HomePageProps) {
   const { identity } = useInternetIdentity();
   const userId = identity?.getPrincipal().toString();
   const { data: profile } = useUserProfile();
   const { data: plans, isLoading: plansLoading } = useAllPlans();
   const { data: investments } = useUserInvestments(userId);
-  const [investDialog, setInvestDialog] = useState<InvestmentPlan | null>(null);
-  const [investAmount, setInvestAmount] = useState("");
+  const [modal, setModal] = useState<ModalState>({ type: "none" });
   const createInvestment = useCreateInvestment();
 
   const activePlans = plans?.filter((p) => p.active) ?? [];
   const activeInvestments = investments?.filter((i) => i.active) ?? [];
 
-  const handleInvest = async () => {
-    if (!investDialog) return;
-    const amt = Number.parseFloat(investAmount);
-    if (Number.isNaN(amt) || amt <= 0) {
-      toast.error("Enter a valid amount");
-      return;
+  const handlePurchaseClick = (plan: InvestmentPlan) => {
+    const balance = profile?.walletBalance ?? 0;
+    if (balance < plan.price) {
+      setModal({ type: "insufficient", plan });
+    } else {
+      setModal({ type: "confirm", plan });
     }
+  };
+
+  const handleConfirmPurchase = async () => {
+    if (modal.type !== "confirm") return;
+    const plan = modal.plan;
     const result = await createInvestment.mutateAsync({
-      planId: investDialog.id,
-      amount: amt,
+      planId: plan.id,
+      amount: plan.price,
     });
     if (result === "ok") {
       toast.success("Investment created successfully!");
-      setInvestDialog(null);
-      setInvestAmount("");
+      setModal({ type: "none" });
     } else if (result === "insufficientBalance") {
-      toast.error("Insufficient balance. Please recharge.");
+      setModal({ type: "insufficient", plan });
     } else {
       toast.error("Plan not found.");
+      setModal({ type: "none" });
     }
   };
+
+  const currentPlan =
+    modal.type === "insufficient" || modal.type === "confirm"
+      ? modal.plan
+      : null;
+  const dailyRupees = currentPlan
+    ? calcDailyIncome(currentPlan.price, currentPlan.dailyReturn)
+    : 0;
+  const totalReturn = currentPlan
+    ? calcTotalReturn(
+        currentPlan.price,
+        currentPlan.dailyReturn,
+        Number(currentPlan.durationDays),
+      )
+    : 0;
 
   return (
     <div className="pb-4">
@@ -194,25 +221,29 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         <div className="bg-card rounded-2xl card-shadow p-3">
           <div className="grid grid-cols-4 gap-1">
             <ActionCard
-              icon={<Wallet className="w-5 h-5" />}
+              icon={
+                <span className="material-icons text-xl">
+                  account_balance_wallet
+                </span>
+              }
               label="Recharge"
               onClick={() => onNavigate("recharge")}
               ocid="home.recharge.button"
             />
             <ActionCard
-              icon={<TrendingUp className="w-5 h-5" />}
+              icon={<span className="material-icons text-xl">trending_up</span>}
               label="Withdraw"
               onClick={() => onNavigate("withdrawal")}
               ocid="home.withdraw.button"
             />
             <ActionCard
-              icon={<Radio className="w-5 h-5" />}
+              icon={<span className="material-icons text-xl">share</span>}
               label="Channel"
               onClick={() => onNavigate("share")}
               ocid="home.channel.button"
             />
             <ActionCard
-              icon={<Download className="w-5 h-5" />}
+              icon={<span className="material-icons text-xl">download</span>}
               label="Download"
               onClick={() => toast.info("Coming soon")}
               ocid="home.download.button"
@@ -274,9 +305,9 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </div>
         {plansLoading ? (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[1, 2, 3].map((_i) => (
-              <Skeleton key={_i} className="h-36 w-full rounded-2xl" />
+              <Skeleton key={_i} className="h-44 w-full rounded-2xl" />
             ))}
           </div>
         ) : activePlans.length === 0 ? (
@@ -287,84 +318,161 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <p className="text-muted-foreground">No plans available</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {activePlans.map((plan, i) => (
               <PlanCard
                 key={plan.id.toString()}
                 plan={plan}
                 index={i + 1}
-                onInvest={() => {
-                  setInvestDialog(plan);
-                  setInvestAmount(plan.price.toString());
-                }}
+                onInvest={() => handlePurchaseClick(plan)}
               />
             ))}
           </div>
         )}
       </section>
 
-      {/* Invest Dialog */}
+      {/* Insufficient Balance Modal */}
       <Dialog
-        open={!!investDialog}
+        open={modal.type === "insufficient"}
         onOpenChange={(o) => {
-          if (!o) {
-            setInvestDialog(null);
-            setInvestAmount("");
-          }
+          if (!o) setModal({ type: "none" });
         }}
       >
         <DialogContent
           className="max-w-[380px] rounded-2xl mx-auto"
-          data-ocid="invest.dialog"
+          data-ocid="insufficient.dialog"
         >
           <DialogHeader>
-            <DialogTitle>Invest in {investDialog?.name}</DialogTitle>
+            <DialogTitle className="text-red-600">
+              Insufficient Balance
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-secondary rounded-xl p-3">
-              <p className="text-sm text-muted-foreground">
-                Min Amount:{" "}
-                <span className="font-semibold text-foreground">
-                  ₹{investDialog?.price}
-                </span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Daily Return:{" "}
-                <span className="font-semibold" style={{ color: "#b8860b" }}>
-                  {investDialog?.dailyReturn}%
-                </span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Duration:{" "}
-                <span className="font-semibold text-foreground">
-                  {investDialog?.durationDays?.toString()} days
-                </span>
-              </p>
-            </div>
-            <div>
-              <Label>Investment Amount (₹)</Label>
-              <Input
-                type="number"
-                value={investAmount}
-                onChange={(e) => setInvestAmount(e.target.value)}
-                placeholder="Enter amount"
-                className="mt-1"
-                data-ocid="invest.input"
-              />
-            </div>
-            <Button
-              onClick={handleInvest}
-              className="w-full border-0 font-semibold"
-              style={GOLD_BTN_STYLE}
-              disabled={createInvestment.isPending}
-              data-ocid="invest.submit_button"
+            <div
+              className="rounded-xl p-4"
+              style={{
+                background: "rgba(220,38,38,0.08)",
+                border: "1px solid rgba(220,38,38,0.2)",
+              }}
             >
-              {createInvestment.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : null}
-              Confirm Investment
-            </Button>
+              <p className="text-sm text-foreground leading-relaxed">
+                Your current balance is{" "}
+                <span className="font-bold" style={{ color: "#b8860b" }}>
+                  ₹{(profile?.walletBalance ?? 0).toFixed(0)}
+                </span>
+                . You need{" "}
+                <span className="font-bold text-red-600">
+                  ₹{currentPlan?.price}
+                </span>{" "}
+                to purchase this plan. Please recharge your wallet first.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setModal({ type: "none" })}
+                data-ocid="insufficient.cancel_button"
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 border-0 font-semibold"
+                style={GOLD_BTN_STYLE}
+                onClick={() => {
+                  setModal({ type: "none" });
+                  onNavigate("recharge");
+                }}
+                data-ocid="insufficient.recharge.button"
+              >
+                Recharge Now
+              </Button>
+            </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Purchase Modal */}
+      <Dialog
+        open={modal.type === "confirm"}
+        onOpenChange={(o) => {
+          if (!o) setModal({ type: "none" });
+        }}
+      >
+        <DialogContent
+          className="max-w-[380px] rounded-2xl mx-auto"
+          data-ocid="confirm.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle>Confirm Purchase</DialogTitle>
+          </DialogHeader>
+          {currentPlan && (
+            <div className="space-y-4">
+              <div className="bg-secondary rounded-xl p-4 space-y-2">
+                <p className="font-bold text-foreground text-base">
+                  {currentPlan.name}
+                </p>
+                <div className="grid grid-cols-2 gap-y-1 text-sm">
+                  <span className="text-muted-foreground">Price:</span>
+                  <span className="font-semibold text-foreground">
+                    ₹{currentPlan.price}
+                  </span>
+                  <span className="text-muted-foreground">Daily Earning:</span>
+                  <span className="font-semibold" style={{ color: "#b8860b" }}>
+                    ₹{dailyRupees.toFixed(0)}/day
+                  </span>
+                  <span className="text-muted-foreground">Duration:</span>
+                  <span className="font-semibold text-foreground">
+                    {currentPlan.durationDays.toString()} days
+                  </span>
+                </div>
+                <div
+                  className="rounded-lg p-3 mt-2"
+                  style={{
+                    background: "rgba(255,215,0,0.1)",
+                    border: "1px solid rgba(255,215,0,0.3)",
+                  }}
+                >
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Total Return
+                  </p>
+                  <p className="text-sm font-medium text-foreground">
+                    ₹{dailyRupees.toFixed(0)} ×{" "}
+                    {currentPlan.durationDays.toString()} days ={" "}
+                    <span
+                      className="font-bold text-base"
+                      style={{ color: "#b8860b" }}
+                    >
+                      ₹{totalReturn.toFixed(0)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setModal({ type: "none" })}
+                  disabled={createInvestment.isPending}
+                  data-ocid="confirm.cancel_button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 border-0 font-semibold"
+                  style={GOLD_BTN_STYLE}
+                  onClick={handleConfirmPurchase}
+                  disabled={createInvestment.isPending}
+                  data-ocid="confirm.confirm_button"
+                >
+                  {createInvestment.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
+                  Confirm
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -407,7 +515,6 @@ function ActionCard({
         style={{
           background: "rgba(255,215,0,0.15)",
           border: "1px solid rgba(255,215,0,0.4)",
-          boxShadow: "0 0 12px rgba(255,215,0,0.2)",
           color: "#FFD700",
         }}
       >
@@ -423,8 +530,12 @@ function PlanCard({
   index,
   onInvest,
 }: { plan: InvestmentPlan; index: number; onInvest: () => void }) {
-  const dailyRupees = (plan.price * plan.dailyReturn) / 100;
-  const total = dailyRupees * Number(plan.durationDays);
+  const dailyRupees = calcDailyIncome(plan.price, plan.dailyReturn);
+  const total = calcTotalReturn(
+    plan.price,
+    plan.dailyReturn,
+    Number(plan.durationDays),
+  );
 
   return (
     <div
@@ -436,7 +547,6 @@ function PlanCard({
         style={{
           background:
             "linear-gradient(90deg, #b8860b 0%, #FFD700 50%, #b8860b 100%)",
-          boxShadow: "0 0 8px rgba(255,215,0,0.5)",
         }}
       />
       <div className="p-4">
@@ -488,6 +598,7 @@ function PlanCard({
           style={GOLD_BTN_STYLE}
           data-ocid={`plans.invest.button.${index}`}
         >
+          <span className="material-icons text-base mr-1">shopping_cart</span>
           Purchase Now
         </Button>
       </div>

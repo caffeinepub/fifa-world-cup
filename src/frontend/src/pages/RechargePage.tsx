@@ -3,8 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ArrowLeft, Clock, Loader2 } from "lucide-react";
-import { useState } from "react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Clock,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RechargeStatus } from "../backend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
@@ -36,6 +42,12 @@ const PAYMENT_METHODS = [
   },
 ];
 
+function generateTxnId(): string {
+  const ts = Date.now();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `TXN-${ts}-${rand}`;
+}
+
 interface RechargePageProps {
   onBack: () => void;
 }
@@ -46,8 +58,19 @@ export default function RechargePage({ onBack }: RechargePageProps) {
   const [amount, setAmount] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("pay-j");
+  const [txnId, setTxnId] = useState<string>(() => generateTxnId());
   const rechargeMutation = useInitiateRecharge();
   const { data: allRecharges, isLoading } = useAllRecharges();
+
+  const regenerateTxnId = useCallback(() => {
+    const newId = generateTxnId();
+    setTxnId(newId);
+  }, []);
+
+  // Auto-prepend txnId into paymentRef whenever txnId changes
+  useEffect(() => {
+    setPaymentRef(txnId);
+  }, [txnId]);
 
   const myRecharges =
     allRecharges?.filter((r) => r.userId.toString() === userId) ?? [];
@@ -63,15 +86,12 @@ export default function RechargePage({ onBack }: RechargePageProps) {
       toast.error("Minimum deposit amount is ₹490");
       return;
     }
-    if (!paymentRef.trim()) {
-      toast.error("Enter payment reference/UTR");
-      return;
-    }
+    const ref = paymentRef.trim() || txnId;
     try {
-      await rechargeMutation.mutateAsync({ amount: amt, paymentRef });
+      await rechargeMutation.mutateAsync({ amount: amt, paymentRef: ref });
       toast.success("Recharge request submitted! Pending approval.");
       setAmount("");
-      setPaymentRef("");
+      regenerateTxnId();
     } catch {
       toast.error("Failed to submit recharge. Try again.");
     }
@@ -182,6 +202,46 @@ export default function RechargePage({ onBack }: RechargePageProps) {
               <span className="font-medium text-foreground">admin@upi</span>
             </div>
           </div>
+
+          {/* Transaction ID */}
+          <div
+            className="mt-4 rounded-xl p-3"
+            style={{
+              background: "rgba(21,101,192,0.10)",
+              border: "1px solid rgba(21,101,192,0.25)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-semibold text-foreground">
+                Your Transaction ID
+              </p>
+              <button
+                type="button"
+                onClick={regenerateTxnId}
+                className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg transition-colors"
+                style={{
+                  color: "#1565c0",
+                  background: "rgba(21,101,192,0.12)",
+                }}
+                data-ocid="recharge.txnid.button"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Generate New ID
+              </button>
+            </div>
+            <p
+              className="font-mono text-sm font-bold tracking-wide break-all"
+              style={{ color: "#b8860b" }}
+              data-ocid="recharge.txnid.panel"
+            >
+              {txnId}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              📋 Note this ID before making payment. It will be auto-filled in
+              the reference field below.
+            </p>
+          </div>
+
           <p className="text-xs text-muted-foreground mt-3 bg-yellow-900/20 rounded-lg p-2">
             ⚠️ Make the payment first, then enter the UTR/Reference number below.
           </p>
@@ -233,10 +293,14 @@ export default function RechargePage({ onBack }: RechargePageProps) {
               id="ref"
               value={paymentRef}
               onChange={(e) => setPaymentRef(e.target.value)}
-              placeholder="Enter UTR or payment reference"
-              className="mt-1"
+              placeholder="Transaction ID auto-filled"
+              className="mt-1 font-mono text-sm"
               data-ocid="recharge.ref.input"
             />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Auto-filled with your Transaction ID. You can replace it with your
+              UTR after payment.
+            </p>
           </div>
           <Button
             type="submit"

@@ -1,23 +1,25 @@
 import { Toaster } from "@/components/ui/sonner";
-import { useState } from "react";
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import BottomNav from "./components/BottomNav";
 import Header from "./components/Header";
 import TelegramPopup from "./components/TelegramPopup";
 import WelcomePopup from "./components/WelcomePopup";
 import { useUserProfile } from "./hooks/useQueries";
-import AccountPage from "./pages/AccountPage";
-import AdminPage from "./pages/AdminPage";
-import AuthPage from "./pages/AuthPage";
-import BankBindingPage from "./pages/BankBindingPage";
-import ChangePasswordPage from "./pages/ChangePasswordPage";
-import HomePage from "./pages/HomePage";
-import PersonalInfoPage from "./pages/PersonalInfoPage";
-import RechargePage from "./pages/RechargePage";
-import SharePage from "./pages/SharePage";
-import TeamPage from "./pages/TeamPage";
-import WithdrawalPage from "./pages/WithdrawalPage";
-import WithdrawalPasswordPage from "./pages/WithdrawalPasswordPage";
+
+const AccountPage = lazy(() => import("./pages/AccountPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const BankBindingPage = lazy(() => import("./pages/BankBindingPage"));
+const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
+const HomePage = lazy(() => import("./pages/HomePage"));
+const PersonalInfoPage = lazy(() => import("./pages/PersonalInfoPage"));
+const RechargePage = lazy(() => import("./pages/RechargePage"));
+const SharePage = lazy(() => import("./pages/SharePage"));
+const TeamPage = lazy(() => import("./pages/TeamPage"));
+const WithdrawalPage = lazy(() => import("./pages/WithdrawalPage"));
+const WithdrawalPasswordPage = lazy(
+  () => import("./pages/WithdrawalPasswordPage"),
+);
 
 export type Page =
   | "home"
@@ -31,6 +33,12 @@ export type Page =
   | "personal-info"
   | "change-password"
   | "withdrawal-password";
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-40">
+    <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(
@@ -76,11 +84,13 @@ export default function App() {
   if (!isLoggedIn) {
     return (
       <>
-        <AuthPage
-          view={authView}
-          onSwitchView={setAuthView}
-          onLogin={(_phone: string) => setIsLoggedIn(true)}
-        />
+        <Suspense fallback={<PageLoader />}>
+          <AuthPage
+            view={authView}
+            onSwitchView={setAuthView}
+            onLogin={(_phone: string) => setIsLoggedIn(true)}
+          />
+        </Suspense>
         <Toaster position="top-center" />
       </>
     );
@@ -144,7 +154,9 @@ export default function App() {
     <div className="min-h-screen bg-background">
       <div className="max-w-[480px] mx-auto min-h-screen relative pb-20">
         <Header />
-        <main>{renderPage()}</main>
+        <main>
+          <Suspense fallback={<PageLoader />}>{renderPage()}</Suspense>
+        </main>
         {showBottomNav && (
           <BottomNav currentPage={currentPage} onNavigate={setCurrentPage} />
         )}

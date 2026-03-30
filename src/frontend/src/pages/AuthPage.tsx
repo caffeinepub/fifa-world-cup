@@ -1,6 +1,8 @@
-import { Eye, EyeOff, RefreshCw, UserPlus } from "lucide-react";
+import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+const DEFAULT_REFERRAL = "J7DGX685";
 
 interface AuthPageProps {
   view: "login" | "register";
@@ -33,6 +35,17 @@ function getAccounts(): Record<string, Account> {
       localStorage.removeItem("pb_withdrawal_pwd");
       localStorage.removeItem("pb_referral");
     }
+    // Migrate all accounts to have the default referral code if missing
+    let migrated = false;
+    for (const phone of Object.keys(accounts)) {
+      if (!accounts[phone].referral) {
+        accounts[phone].referral = DEFAULT_REFERRAL;
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      localStorage.setItem("pb_accounts", JSON.stringify(accounts));
+    }
     return accounts;
   } catch {
     return {};
@@ -51,16 +64,7 @@ export default function AuthPage({
   const [showConfirm, setShowConfirm] = useState(false);
   const [withdrawalPassword, setWithdrawalPassword] = useState("");
   const [showWithdrawal, setShowWithdrawal] = useState(false);
-  const [referralCode, setReferralCode] = useState("");
-
-  const generateReferralCode = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    const code = Array.from(
-      { length: 8 },
-      () => chars[Math.floor(Math.random() * chars.length)],
-    ).join("");
-    setReferralCode(code);
-  };
+  const [referralCode, setReferralCode] = useState(DEFAULT_REFERRAL);
 
   useEffect(() => {
     // Always pre-fill saved phone number
@@ -69,10 +73,13 @@ export default function AuthPage({
       setPhone(savedPhone);
     }
     const stored = sessionStorage.getItem("referralCode");
-    if (stored) setReferralCode(stored);
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get("ref");
-    if (ref) setReferralCode(ref);
+    if (stored) {
+      setReferralCode(stored);
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      setReferralCode(ref || DEFAULT_REFERRAL);
+    }
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -265,24 +272,16 @@ export default function AuthPage({
                   )}
                 </button>
               </div>
-              <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-4 gap-2 focus-within:ring-2 focus-within:ring-blue-500">
+              <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full h-12 px-4 gap-2">
                 <UserPlus className="w-4 h-4 text-blue-500 shrink-0" />
                 <input
                   type="text"
                   value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value)}
+                  readOnly
                   placeholder="Referral code"
-                  className="flex-1 bg-transparent outline-none text-sm font-mono tracking-wider text-blue-900 placeholder:text-blue-400"
+                  className="flex-1 bg-transparent outline-none text-sm font-mono tracking-wider text-blue-900 placeholder:text-blue-400 cursor-not-allowed"
                   data-ocid="register.referral"
                 />
-                <button
-                  type="button"
-                  onClick={generateReferralCode}
-                  className="text-blue-400 hover:text-blue-600 transition-colors"
-                  title="Generate random referral code"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
               </div>
               <button
                 type="submit"
