@@ -92,9 +92,6 @@ function BannerSlider() {
         <div className="px-5 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/70 text-xs mb-1 uppercase tracking-wider">
-                FIFA World Cup Earn
-              </p>
               <h3 className="text-white font-bold text-xl">{slide.name}</h3>
               <p className="text-white/80 text-sm mt-1">{slide.tagline}</p>
             </div>
@@ -170,7 +167,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         <h2 className="text-white font-bold text-xl mb-4">
           {profile?.username ?? "Investor"}
         </h2>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <div
             className="bg-white/15 rounded-xl p-3 backdrop-blur-sm"
             style={{ boxShadow: "0 0 12px rgba(59,130,246,0.2)" }}
@@ -178,15 +175,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <p className="text-white/70 text-[10px] mb-0.5">Balance</p>
             <p className="text-white font-bold text-base">
               ₹{(profile?.walletBalance ?? 0).toFixed(0)}
-            </p>
-          </div>
-          <div
-            className="bg-white/15 rounded-xl p-3 backdrop-blur-sm"
-            style={{ boxShadow: "0 0 12px rgba(59,130,246,0.2)" }}
-          >
-            <p className="text-white/70 text-[10px] mb-0.5">Recharged</p>
-            <p className="text-white font-bold text-base">
-              ₹{(profile?.totalRecharged ?? 0).toFixed(0)}
             </p>
           </div>
           <div
