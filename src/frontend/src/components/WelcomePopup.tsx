@@ -34,11 +34,11 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
           transition={{ type: "spring", stiffness: 300, damping: 25 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Gold top border accent */}
+          {/* Blue top border accent */}
           <div
             className="h-1 w-full"
             style={{
-              background: "linear-gradient(90deg, #d4af37, #ffd700, #d4af37)",
+              background: "linear-gradient(90deg, #1d4ed8, #3b82f6, #1d4ed8)",
             }}
           />
 
@@ -49,7 +49,7 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
             {/* Star decoration */}
             <div className="flex justify-center gap-1 mb-4">
               {STARS.map((key) => (
-                <span key={key} className="text-yellow-400 text-sm">
+                <span key={key} className="text-blue-400 text-sm">
                   ⭐
                 </span>
               ))}
@@ -65,7 +65,7 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
             <h2
               className="text-3xl font-black mb-1 uppercase tracking-wider"
               style={{
-                background: "linear-gradient(90deg, #d4af37, #ffd700, #d4af37)",
+                background: "linear-gradient(90deg, #1d4ed8, #60a5fa, #1d4ed8)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -79,7 +79,7 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
               className="w-16 h-0.5 mx-auto my-4"
               style={{
                 background:
-                  "linear-gradient(90deg, transparent, #d4af37, transparent)",
+                  "linear-gradient(90deg, transparent, #3b82f6, transparent)",
               }}
             />
 
@@ -111,11 +111,11 @@ export default function WelcomePopup({ onClose }: WelcomePopupProps) {
             </button>
           </div>
 
-          {/* Gold bottom border accent */}
+          {/* Blue bottom border accent */}
           <div
             className="h-1 w-full"
             style={{
-              background: "linear-gradient(90deg, #d4af37, #ffd700, #d4af37)",
+              background: "linear-gradient(90deg, #1d4ed8, #3b82f6, #1d4ed8)",
             }}
           />
         </motion.div>

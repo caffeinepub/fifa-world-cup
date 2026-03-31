@@ -36,7 +36,7 @@ export type Page =
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-40">
-    <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+    <div className="w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full animate-spin" />
   </div>
 );
 
@@ -181,14 +181,14 @@ export default function App() {
             bottom: 88,
             right: 16,
             zIndex: 9999,
-            background: "linear-gradient(135deg, #d4af37 0%, #f5c842 100%)",
-            color: "#0a1628",
+            background: "linear-gradient(135deg, #1565c0 0%, #3b82f6 100%)",
+            color: "#ffffff",
             border: "none",
             borderRadius: 50,
             padding: "10px 16px",
             fontWeight: 700,
             fontSize: 13,
-            boxShadow: "0 4px 16px rgba(212,175,55,0.5)",
+            boxShadow: "0 4px 16px rgba(59,130,246,0.5)",
             display: "flex",
             alignItems: "center",
             gap: 6,

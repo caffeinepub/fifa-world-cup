@@ -37,29 +37,11 @@ interface HomePageProps {
   onNavigate: (page: Page) => void;
 }
 
-const GOLD_BTN_STYLE = {
-  background: "linear-gradient(135deg, #b8860b 0%, #FFD700 100%)",
-  boxShadow: "0 4px 20px rgba(184,134,11,0.5), 0 0 30px rgba(255,215,0,0.25)",
-  color: "#0a1628",
+const BLUE_BTN_STYLE = {
+  background: "linear-gradient(135deg, #1565c0 0%, #3b82f6 100%)",
+  boxShadow: "0 4px 20px rgba(59,130,246,0.4)",
+  color: "#ffffff",
 };
-
-const BANNER_SLIDES = [
-  { type: "image" as const },
-  {
-    type: "text" as const,
-    emoji: "⚽",
-    name: "FIFA World Cup 2026",
-    tagline: "Invest & Earn During the World Cup Season",
-    gradient: "linear-gradient(135deg, #0a1628 0%, #1a3a6e 100%)",
-  },
-  {
-    type: "text" as const,
-    emoji: "🏆",
-    name: "Champion's Earnings",
-    tagline: "Score big returns every single day",
-    gradient: "linear-gradient(135deg, #0a1628 0%, #1a3a6e 100%)",
-  },
-];
 
 const DEFAULT_PLANS: InvestmentPlan[] = [
   {
@@ -118,67 +100,6 @@ const DEFAULT_PLANS: InvestmentPlan[] = [
   },
 ];
 
-function BannerSlider() {
-  const [active, setActive] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setActive((prev) => (prev + 1) % BANNER_SLIDES.length);
-    }, 3000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
-
-  const slide = BANNER_SLIDES[active];
-
-  return (
-    <div
-      className="relative w-full overflow-hidden rounded-2xl mx-4"
-      style={{
-        maxWidth: "calc(100% - 2rem)",
-        background: slide.type === "image" ? "#0a1628" : slide.gradient,
-        transition: "background 0.6s ease",
-      }}
-    >
-      {slide.type === "image" ? (
-        <img
-          src="/assets/generated/fifa-banner.dim_800x300.jpg"
-          alt="FIFA World Cup 2026"
-          className="w-full object-cover rounded-2xl"
-          style={{ height: "160px", display: "block" }}
-        />
-      ) : (
-        <div className="px-5 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-white font-bold text-xl">{slide.name}</h3>
-              <p className="text-white/80 text-sm mt-1">{slide.tagline}</p>
-            </div>
-            <div className="text-6xl">{slide.emoji}</div>
-          </div>
-        </div>
-      )}
-      <div
-        className="flex gap-2 absolute bottom-2 left-5"
-        style={{ pointerEvents: "auto" }}
-      >
-        {BANNER_SLIDES.map((s, i) => (
-          <button
-            key={s.type === "image" ? "dot-image" : s.name}
-            type="button"
-            onClick={() => setActive(i)}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === active ? "w-6 bg-yellow-400" : "w-2 bg-white/40"
-            }`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 type ModalState =
   | { type: "none" }
   | { type: "insufficient"; plan: InvestmentPlan }
@@ -190,6 +111,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const { data: plans, isLoading: plansLoading } = useAllPlans();
   const { data: investments } = useUserInvestments(userId);
   const [modal, setModal] = useState<ModalState>({ type: "none" });
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const createInvestment = useCreateInvestment();
   const addPlan = useAddOrUpdatePlan();
   const seededRef = useRef<boolean>(false);
@@ -313,16 +235,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         <div className="bg-card rounded-2xl card-shadow p-3">
           <div className="grid grid-cols-5 gap-1">
             <ActionCard
-              icon={
-                <span className="material-icons text-xl">
-                  account_balance_wallet
-                </span>
-              }
-              label="Recharge"
-              onClick={() => onNavigate("recharge")}
-              ocid="home.recharge.button"
-            />
-            <ActionCard
               icon={<span className="material-icons text-xl">trending_up</span>}
               label="Withdraw"
               onClick={() => onNavigate("withdrawal")}
@@ -335,6 +247,16 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               ocid="home.earn.button"
             />
             <ActionCard
+              icon={
+                <span className="material-icons text-xl">
+                  account_balance_wallet
+                </span>
+              }
+              label="Recharge"
+              onClick={() => onNavigate("recharge")}
+              ocid="home.recharge.button"
+            />
+            <ActionCard
               icon={<span className="material-icons text-xl">share</span>}
               label="Channel"
               onClick={() => onNavigate("share")}
@@ -343,16 +265,11 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <ActionCard
               icon={<span className="material-icons text-xl">download</span>}
               label="Download"
-              onClick={() => toast.info("Coming soon")}
+              onClick={() => setShowDownloadModal(true)}
               ocid="home.download.button"
             />
           </div>
         </div>
-      </div>
-
-      {/* Banner Slider */}
-      <div className="mt-4 flex">
-        <BannerSlider />
       </div>
 
       {/* Active Investments */}
@@ -382,7 +299,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 <div className="text-right">
                   <p
                     className="font-semibold text-sm"
-                    style={{ color: "#b8860b" }}
+                    style={{ color: "#3b82f6" }}
                   >
                     +₹{inv.dailyEarnings.toFixed(2)}/day
                   </p>
@@ -429,6 +346,121 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         )}
       </section>
 
+      {/* Install App Modal */}
+      <Dialog open={showDownloadModal} onOpenChange={setShowDownloadModal}>
+        <DialogContent
+          className="max-w-[380px] rounded-2xl mx-auto"
+          data-ocid="download.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span
+                className="material-icons text-xl"
+                style={{ color: "#3b82f6" }}
+              >
+                install_mobile
+              </span>
+              Install App
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Android */}
+            <div
+              className="rounded-xl p-4 space-y-2"
+              style={{
+                background: "rgba(59,130,246,0.08)",
+                border: "1px solid rgba(59,130,246,0.2)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="material-icons text-base"
+                  style={{ color: "#3b82f6" }}
+                >
+                  android
+                </span>
+                <p className="font-semibold text-foreground text-sm">
+                  Android (Chrome)
+                </p>
+              </div>
+              <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground pl-1">
+                <li>
+                  Tap the{" "}
+                  <span className="font-medium text-foreground">
+                    3-dot menu
+                  </span>{" "}
+                  (⋮) in Chrome
+                </li>
+                <li>
+                  Tap{" "}
+                  <span className="font-medium text-foreground">
+                    "Add to Home Screen"
+                  </span>
+                </li>
+                <li>
+                  Tap <span className="font-medium text-foreground">"Add"</span>{" "}
+                  to confirm
+                </li>
+              </ol>
+            </div>
+
+            {/* iPhone */}
+            <div
+              className="rounded-xl p-4 space-y-2"
+              style={{
+                background: "rgba(59,130,246,0.08)",
+                border: "1px solid rgba(59,130,246,0.2)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="material-icons text-base"
+                  style={{ color: "#3b82f6" }}
+                >
+                  apple
+                </span>
+                <p className="font-semibold text-foreground text-sm">
+                  iPhone (Safari)
+                </p>
+              </div>
+              <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground pl-1">
+                <li>
+                  Tap the{" "}
+                  <span className="font-medium text-foreground">
+                    Share button
+                  </span>{" "}
+                  (box with arrow ↑)
+                </li>
+                <li>
+                  Scroll down and tap{" "}
+                  <span className="font-medium text-foreground">
+                    "Add to Home Screen"
+                  </span>
+                </li>
+                <li>
+                  Tap <span className="font-medium text-foreground">"Add"</span>{" "}
+                  to confirm
+                </li>
+              </ol>
+            </div>
+
+            {/* Note */}
+            <p className="text-xs text-muted-foreground text-center px-2">
+              The app will appear on your home screen and open like a native app
+            </p>
+
+            <Button
+              className="w-full border-0 font-semibold"
+              style={BLUE_BTN_STYLE}
+              onClick={() => setShowDownloadModal(false)}
+              data-ocid="download.close_button"
+            >
+              Got it!
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Insufficient Balance Modal */}
       <Dialog
         open={modal.type === "insufficient"}
@@ -455,7 +487,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             >
               <p className="text-sm text-foreground leading-relaxed">
                 Your current balance is{" "}
-                <span className="font-bold" style={{ color: "#b8860b" }}>
+                <span className="font-bold" style={{ color: "#3b82f6" }}>
                   ₹{walletBalance.toFixed(0)}
                 </span>
                 . You need{" "}
@@ -476,7 +508,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               </Button>
               <Button
                 className="flex-1 border-0 font-semibold"
-                style={GOLD_BTN_STYLE}
+                style={BLUE_BTN_STYLE}
                 onClick={() => {
                   setModal({ type: "none" });
                   onNavigate("recharge");
@@ -516,7 +548,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                     ₹{currentPlan.price}
                   </span>
                   <span className="text-muted-foreground">Daily Earning:</span>
-                  <span className="font-semibold" style={{ color: "#b8860b" }}>
+                  <span className="font-semibold" style={{ color: "#3b82f6" }}>
                     ₹{dailyRupees.toFixed(0)}/day
                   </span>
                   <span className="text-muted-foreground">Duration:</span>
@@ -527,8 +559,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 <div
                   className="rounded-lg p-3 mt-2"
                   style={{
-                    background: "rgba(255,215,0,0.1)",
-                    border: "1px solid rgba(255,215,0,0.3)",
+                    background: "rgba(59,130,246,0.1)",
+                    border: "1px solid rgba(59,130,246,0.3)",
                   }}
                 >
                   <p className="text-xs text-muted-foreground mb-1">
@@ -539,7 +571,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                     {currentPlan.durationDays.toString()} days ={" "}
                     <span
                       className="font-bold text-base"
-                      style={{ color: "#b8860b" }}
+                      style={{ color: "#3b82f6" }}
                     >
                       ₹{totalReturn.toFixed(0)}
                     </span>
@@ -558,7 +590,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 </Button>
                 <Button
                   className="flex-1 border-0 font-semibold"
-                  style={GOLD_BTN_STYLE}
+                  style={BLUE_BTN_STYLE}
                   onClick={handleConfirmPurchase}
                   disabled={createInvestment.isPending}
                   data-ocid="confirm.confirm_button"
@@ -598,9 +630,9 @@ function ActionCard({
       <div
         className="w-10 h-10 rounded-full flex items-center justify-center"
         style={{
-          background: "rgba(255,215,0,0.15)",
-          border: "1px solid rgba(255,215,0,0.4)",
-          color: "#FFD700",
+          background: "rgba(59,130,246,0.15)",
+          border: "1px solid rgba(59,130,246,0.4)",
+          color: "#3b82f6",
         }}
       >
         {icon}
@@ -631,7 +663,7 @@ function PlanCard({
         className="h-2"
         style={{
           background:
-            "linear-gradient(90deg, #b8860b 0%, #FFD700 50%, #b8860b 100%)",
+            "linear-gradient(90deg, #1d4ed8 0%, #3b82f6 50%, #1d4ed8 100%)",
         }}
       />
       <div className="p-4">
@@ -645,9 +677,9 @@ function PlanCard({
           <Badge
             className="border-0 font-semibold"
             style={{
-              background: "rgba(255,215,0,0.15)",
-              color: "#b8860b",
-              border: "1px solid rgba(255,215,0,0.3)",
+              background: "rgba(59,130,246,0.15)",
+              color: "#2563eb",
+              border: "1px solid rgba(59,130,246,0.3)",
             }}
           >
             {plan.dailyReturn}%/day
@@ -660,7 +692,7 @@ function PlanCard({
           </div>
           <div className="text-center border-x border-border">
             <p className="text-[10px] text-muted-foreground">Daily</p>
-            <p className="font-bold text-sm" style={{ color: "#b8860b" }}>
+            <p className="font-bold text-sm" style={{ color: "#3b82f6" }}>
               ₹{dailyRupees.toFixed(0)}
             </p>
           </div>
@@ -672,7 +704,7 @@ function PlanCard({
           </div>
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground">Total</p>
-            <p className="font-bold text-sm" style={{ color: "#b8860b" }}>
+            <p className="font-bold text-sm" style={{ color: "#3b82f6" }}>
               ₹{total.toFixed(0)}
             </p>
           </div>
@@ -680,7 +712,7 @@ function PlanCard({
         <Button
           onClick={onInvest}
           className="w-full border-0 font-semibold h-9"
-          style={GOLD_BTN_STYLE}
+          style={BLUE_BTN_STYLE}
           data-ocid={`plans.invest.button.${index}`}
         >
           <span className="material-icons text-base mr-1">shopping_cart</span>

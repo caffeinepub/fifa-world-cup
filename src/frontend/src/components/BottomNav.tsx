@@ -39,17 +39,12 @@ export default function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
             onClick={() => onNavigate("recharge")}
             className="-mt-6 w-14 h-14 rounded-full flex items-center justify-center border-4 border-white"
             style={{
-              background: "linear-gradient(135deg, #b8860b 0%, #FFD700 100%)",
-              boxShadow:
-                "0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,215,0,0.3)",
+              background: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
+              boxShadow: "0 4px 16px rgba(59,130,246,0.5)",
             }}
             data-ocid="nav.deposit.button"
           >
-            <Plus
-              className="w-6 h-6"
-              style={{ color: "#0a1628" }}
-              strokeWidth={3}
-            />
+            <Plus className="w-6 h-6 text-white" strokeWidth={3} />
           </button>
           <span
             className="text-[11px] font-medium mt-0.5"
@@ -89,25 +84,15 @@ function NavButton({
       className={`flex flex-col items-center gap-0.5 flex-1 py-1 transition-colors ${
         active ? "" : "text-slate-400"
       }`}
-      style={active ? { color: "#b8860b" } : undefined}
+      style={active ? { color: "#3b82f6" } : undefined}
       data-ocid={`nav.${item.id}.link`}
     >
-      <Icon
-        className="w-5 h-5"
-        style={
-          active
-            ? { filter: "drop-shadow(0 0 4px rgba(255,215,0,0.8))" }
-            : undefined
-        }
-      />
+      <Icon className="w-5 h-5" />
       <span className="text-[11px] font-medium">{item.label}</span>
       {active && (
         <div
           className="w-4 h-0.5 rounded-full mt-0.5"
-          style={{
-            background: "#FFD700",
-            boxShadow: "0 0 8px rgba(255,215,0,0.8)",
-          }}
+          style={{ background: "#3b82f6" }}
         />
       )}
     </button>
