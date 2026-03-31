@@ -17,6 +17,7 @@ import type { Page } from "../App";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAllRecharges,
+  useAllWithdrawals,
   useIsAdmin,
   useUserProfile,
 } from "../hooks/useQueries";
@@ -35,6 +36,8 @@ export default function AccountPage({
   const { data: isAdmin } = useIsAdmin();
   const { identity } = useInternetIdentity();
   const { data: recharges, isLoading: rechargesLoading } = useAllRecharges();
+  const { data: withdrawals, isLoading: withdrawalsLoading } =
+    useAllWithdrawals();
 
   const [hasAdminUrl, setHasAdminUrl] = useState(
     () => sessionStorage.getItem("adminAccess") === "1",
@@ -76,6 +79,11 @@ export default function AccountPage({
   const userId = identity?.getPrincipal().toString();
   const myRecharges = (recharges ?? [])
     .filter((r: any) => r.userId.toString() === userId)
+    .slice(-5)
+    .reverse();
+
+  const myWithdrawals = (withdrawals ?? [])
+    .filter((w: any) => w.userId.toString() === userId)
     .slice(-5)
     .reverse();
 
@@ -201,6 +209,56 @@ export default function AccountPage({
                     </p>
                   </div>
                   <StatusBadge status={r.status} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Withdrawal History */}
+        <div
+          className="bg-card rounded-2xl card-shadow overflow-hidden"
+          data-ocid="account.withdrawal.panel"
+        >
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <Clock className="w-4 h-4 text-primary" />
+            <span className="font-semibold text-sm text-foreground">
+              Withdrawal History
+            </span>
+          </div>
+          {withdrawalsLoading ? (
+            <div
+              className="px-4 py-3 space-y-2"
+              data-ocid="account.withdrawal.loading_state"
+            >
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : myWithdrawals.length === 0 ? (
+            <div
+              className="px-4 py-6 text-center text-muted-foreground text-sm"
+              data-ocid="account.withdrawal.empty_state"
+            >
+              No withdrawal history
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {myWithdrawals.map((w: any, idx: number) => (
+                <div
+                  key={w.id?.toString() ?? idx}
+                  className="flex items-center justify-between px-4 py-3"
+                  data-ocid={`account.withdrawal.item.${idx + 1}`}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      ₹{Number(w.amount).toFixed(0)}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[160px]">
+                      {w.paymentDetails}
+                    </p>
+                  </div>
+                  <StatusBadge status={w.status} />
                 </div>
               ))}
             </div>
