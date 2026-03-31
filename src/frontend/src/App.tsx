@@ -40,27 +40,21 @@ const PageLoader = () => (
   </div>
 );
 
+// Persist admin access at module level
+const adminParam = new URLSearchParams(window.location.search).get("admin");
+if (adminParam === "Aliraza5234") {
+  sessionStorage.setItem("adminAccess", "1");
+}
+const isAdminSession = sessionStorage.getItem("adminAccess") === "1";
+const alreadyLoggedIn =
+  !!localStorage.getItem("pb_current_phone") ||
+  !!localStorage.getItem("pb_phone");
+
 export default function App() {
-  // Check for admin URL param or persisted session flag
-  const isAdminUrl =
-    new URLSearchParams(window.location.search).get("admin") ===
-      "Aliraza5234" || sessionStorage.getItem("adminAccess") === "1";
-
-  // Persist admin access across navigation within the session
-  if (
-    new URLSearchParams(window.location.search).get("admin") === "Aliraza5234"
-  ) {
-    sessionStorage.setItem("adminAccess", "1");
-  }
-
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    () =>
-      !!localStorage.getItem("pb_current_phone") ||
-      !!localStorage.getItem("pb_phone"),
-  );
+  const [isLoggedIn, setIsLoggedIn] = useState(() => alreadyLoggedIn);
   const { data: _userProfile } = useUserProfile();
   const [currentPage, setCurrentPage] = useState<Page>(
-    isAdminUrl ? "admin" : "home",
+    isAdminSession && alreadyLoggedIn ? "admin" : "home",
   );
   const [authView, setAuthView] = useState<"login" | "register">("login");
   const [showWelcome, setShowWelcome] = useState(false);
@@ -69,9 +63,7 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");
-    if (ref) {
-      sessionStorage.setItem("referralCode", ref);
-    }
+    if (ref) sessionStorage.setItem("referralCode", ref);
   }, []);
 
   useEffect(() => {
@@ -104,9 +96,7 @@ export default function App() {
             onSwitchView={setAuthView}
             onLogin={(_phone: string) => {
               setIsLoggedIn(true);
-              if (isAdminUrl) {
-                setCurrentPage("admin");
-              }
+              if (isAdminSession) setCurrentPage("admin");
             }}
           />
         </Suspense>
@@ -140,7 +130,7 @@ export default function App() {
       case "withdrawal":
         return <WithdrawalPage onBack={() => setCurrentPage("account")} />;
       case "admin":
-        return <AdminPage onBack={() => setCurrentPage("account")} />;
+        return <AdminPage onBack={() => setCurrentPage("home")} />;
       case "bank":
         return <BankBindingPage onBack={() => setCurrentPage("account")} />;
       case "personal-info":
@@ -180,6 +170,38 @@ export default function App() {
           <BottomNav currentPage={currentPage} onNavigate={setCurrentPage} />
         )}
       </div>
+
+      {/* Floating admin shortcut - one tap from anywhere */}
+      {isAdminSession && currentPage !== "admin" && (
+        <button
+          type="button"
+          onClick={() => setCurrentPage("admin")}
+          style={{
+            position: "fixed",
+            bottom: 88,
+            right: 16,
+            zIndex: 9999,
+            background: "linear-gradient(135deg, #d4af37 0%, #f5c842 100%)",
+            color: "#0a1628",
+            border: "none",
+            borderRadius: 50,
+            padding: "10px 16px",
+            fontWeight: 700,
+            fontSize: 13,
+            boxShadow: "0 4px 16px rgba(212,175,55,0.5)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            cursor: "pointer",
+          }}
+        >
+          <span className="material-icons" style={{ fontSize: 18 }}>
+            shield
+          </span>
+          Admin
+        </button>
+      )}
+
       <Toaster position="top-center" />
       {showWelcome && <WelcomePopup onClose={handleCloseWelcome} />}
       {showTelegram && !showWelcome && (
