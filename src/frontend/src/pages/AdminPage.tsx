@@ -638,9 +638,14 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-sm">{user.username}</p>
+                        <p className="font-semibold text-sm">
+                          {user.username || "FIFA Member"}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {user.phone} · Code: {user.referralCode}
+                          {user.phone
+                            ? `****${user.phone.slice(-4)}`
+                            : "------"}{" "}
+                          · Code: {user.referralCode}
                         </p>
                       </div>
                       <div className="text-right">

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { RechargeStatus } from "../backend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useAllRecharges, useInitiateRecharge } from "../hooks/useQueries";
+import { getWallet, setWallet } from "../utils/wallet";
 
 const QUICK_AMOUNTS = [490, 500, 1000, 2000, 5000];
 
@@ -89,7 +90,18 @@ export default function RechargePage({ onBack }: RechargePageProps) {
     const ref = paymentRef.trim() || txnId;
     try {
       await rechargeMutation.mutateAsync({ amount: amt, paymentRef: ref });
-      toast.success("Recharge request submitted! Pending approval.");
+      const phone = localStorage.getItem("pb_current_phone") || "";
+      if (phone) {
+        const wallet = getWallet(phone) as {
+          balance: number;
+          earnings: number;
+          totalRecharged?: number;
+        };
+        wallet.balance += amt;
+        wallet.totalRecharged = (wallet.totalRecharged ?? 0) + amt;
+        setWallet(phone, wallet);
+      }
+      toast.success(`Recharge of ₹${amt} added to your wallet!`);
       setAmount("");
       regenerateTxnId();
     } catch {

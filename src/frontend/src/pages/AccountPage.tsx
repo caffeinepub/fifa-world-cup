@@ -1,8 +1,10 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BanknoteIcon,
   ChevronRight,
+  Clock,
   LogOut,
   Shield,
   TrendingUp,
@@ -12,7 +14,13 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Page } from "../App";
-import { useIsAdmin, useUserProfile } from "../hooks/useQueries";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useAllRecharges,
+  useIsAdmin,
+  useUserProfile,
+} from "../hooks/useQueries";
+import { getWallet } from "../utils/wallet";
 
 interface AccountPageProps {
   onNavigate: (page: Page) => void;
@@ -23,24 +31,31 @@ export default function AccountPage({
   onNavigate,
   onLogout,
 }: AccountPageProps) {
-  const storedPhone = localStorage.getItem("pb_phone");
   const { data: profile, isLoading } = useUserProfile();
   const { data: isAdmin } = useIsAdmin();
+  const { identity } = useInternetIdentity();
+  const { data: recharges, isLoading: rechargesLoading } = useAllRecharges();
 
-  // Move URL param check inside the component to be React-safe
   const [hasAdminUrl, setHasAdminUrl] = useState(
     () => sessionStorage.getItem("adminAccess") === "1",
   );
 
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletEarnings, setWalletEarnings] = useState(0);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("admin") === "Aliraza5234") {
+    if (params.get("admin") === "Alireza5234") {
       sessionStorage.setItem("adminAccess", "1");
       setHasAdminUrl(true);
     }
+    const phone = localStorage.getItem("pb_current_phone");
+    if (phone) {
+      const w = getWallet(phone);
+      setWalletBalance(w.balance);
+      setWalletEarnings(w.earnings);
+    }
   }, []);
-
-  const shortUid = storedPhone ? storedPhone.slice(-8) : "--------";
 
   if (isLoading) {
     return (
@@ -58,6 +73,12 @@ export default function AccountPage({
     onLogout?.();
   };
 
+  const userId = identity?.getPrincipal().toString();
+  const myRecharges = (recharges ?? [])
+    .filter((r: any) => r.userId.toString() === userId)
+    .slice(-5)
+    .reverse();
+
   return (
     <div className="pb-4">
       {/* Profile Header */}
@@ -69,13 +90,12 @@ export default function AccountPage({
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-white font-bold text-lg">
-                {profile?.username ?? storedPhone ?? "User"}
+                {profile?.phone || "FIFA Member"}
               </h2>
               <span className="bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
                 VIP 1
               </span>
             </div>
-            <p className="text-white/70 text-xs mt-0.5">UID: {shortUid}</p>
             <p className="text-white/60 text-xs mt-0.5">
               Code: {profile?.referralCode}
             </p>
@@ -88,7 +108,7 @@ export default function AccountPage({
         <div className="grid grid-cols-3 gap-2">
           <StatCard
             label="Balance"
-            value={`₹${(profile?.walletBalance ?? 0).toFixed(0)}`}
+            value={`₹${walletBalance.toFixed(0)}`}
             icon={<Wallet className="w-4 h-4" />}
           />
           <StatCard
@@ -98,7 +118,7 @@ export default function AccountPage({
           />
           <StatCard
             label="Income"
-            value={`₹${(profile?.totalEarned ?? 0).toFixed(0)}`}
+            value={`₹${walletEarnings.toFixed(0)}`}
             icon={<TrendingUp className="w-4 h-4" />}
           />
         </div>
@@ -137,6 +157,56 @@ export default function AccountPage({
           />
         </div>
 
+        {/* Recharge History */}
+        <div
+          className="bg-card rounded-2xl card-shadow overflow-hidden"
+          data-ocid="account.recharge.panel"
+        >
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <Clock className="w-4 h-4 text-primary" />
+            <span className="font-semibold text-sm text-foreground">
+              Recharge History
+            </span>
+          </div>
+          {rechargesLoading ? (
+            <div
+              className="px-4 py-3 space-y-2"
+              data-ocid="account.recharge.loading_state"
+            >
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : myRecharges.length === 0 ? (
+            <div
+              className="px-4 py-6 text-center text-muted-foreground text-sm"
+              data-ocid="account.recharge.empty_state"
+            >
+              No recharge history
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {myRecharges.map((r: any, idx: number) => (
+                <div
+                  key={r.id?.toString() ?? idx}
+                  className="flex items-center justify-between px-4 py-3"
+                  data-ocid={`account.recharge.item.${idx + 1}`}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      ₹{Number(r.amount).toFixed(0)}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[160px]">
+                      {r.paymentRef}
+                    </p>
+                  </div>
+                  <StatusBadge status={r.status} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Admin Panel */}
         {(isAdmin || hasAdminUrl) && (
           <Button
@@ -162,20 +232,40 @@ export default function AccountPage({
           </div>
           <LogOut className="w-4 h-4" />
         </button>
-
-        <footer className="text-center pt-2 text-xs text-muted-foreground">
-          © {new Date().getFullYear()}. Built with ❤️ using{" "}
-          <a
-            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-            className="text-primary underline"
-            target="_blank"
-            rel="noreferrer"
-          >
-            caffeine.ai
-          </a>
-        </footer>
       </div>
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: any }) {
+  const s = Array.isArray(status)
+    ? Object.keys(status[0] ?? {})[0]
+    : typeof status === "object"
+      ? Object.keys(status)[0]
+      : String(status);
+  if (s === "completed" || s === "Completed") {
+    return (
+      <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">
+        Completed
+      </Badge>
+    );
+  }
+  if (
+    s === "failed" ||
+    s === "Failed" ||
+    s === "rejected" ||
+    s === "Rejected"
+  ) {
+    return (
+      <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">
+        Failed
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px]">
+      Pending
+    </Badge>
   );
 }
 

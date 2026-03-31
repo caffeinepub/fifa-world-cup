@@ -1,6 +1,7 @@
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { initWallet } from "../utils/wallet";
 
 const DEFAULT_REFERRAL = "J7DGX685";
 
@@ -101,6 +102,8 @@ export default function AuthPage({
     // Always save phone for next login
     localStorage.setItem("pb_saved_phone", phone.trim());
     localStorage.setItem("pb_current_phone", phone.trim());
+    // Ensure wallet exists on login too
+    initWallet(phone.trim());
     toast.success("Login successful! Welcome back.");
     onLogin(phone.trim());
   };
@@ -141,6 +144,8 @@ export default function AuthPage({
     // Always save phone and session after registration
     localStorage.setItem("pb_saved_phone", phone.trim());
     localStorage.setItem("pb_current_phone", phone.trim());
+    // Initialize wallet with starting balance
+    initWallet(phone.trim());
     sessionStorage.removeItem("referralCode");
     toast.success("Account created successfully! Welcome to FIFA World Cup.");
     onLogin(phone.trim());

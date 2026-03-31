@@ -18,8 +18,8 @@ import {
   useAllPlans,
   useCreateInvestment,
   useUserInvestments,
-  useUserProfile,
 } from "../hooks/useQueries";
+import { earnRandom, getWallet } from "../utils/wallet";
 
 function calcDailyIncome(price: number, dailyReturnPct: number): number {
   return (price * dailyReturnPct) / 100;
@@ -187,7 +187,6 @@ type ModalState =
 export default function HomePage({ onNavigate }: HomePageProps) {
   const { identity } = useInternetIdentity();
   const userId = identity?.getPrincipal().toString();
-  const { data: profile } = useUserProfile();
   const { data: plans, isLoading: plansLoading } = useAllPlans();
   const { data: investments } = useUserInvestments(userId);
   const [modal, setModal] = useState<ModalState>({ type: "none" });
@@ -196,6 +195,19 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const seededRef = useRef<boolean>(false);
   const addPlanMutateRef = useRef(addPlan.mutate);
   addPlanMutateRef.current = addPlan.mutate;
+
+  // Wallet state from localStorage
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletEarnings, setWalletEarnings] = useState(0);
+
+  useEffect(() => {
+    const phone = localStorage.getItem("pb_current_phone");
+    if (phone) {
+      const w = getWallet(phone);
+      setWalletBalance(w.balance);
+      setWalletEarnings(w.earnings);
+    }
+  }, []);
 
   useEffect(() => {
     if (!plans || plansLoading || plans.length > 0 || seededRef.current) return;
@@ -208,9 +220,21 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const activePlans = plans?.filter((p) => p.active) ?? [];
   const activeInvestments = investments?.filter((i) => i.active) ?? [];
 
+  const handleEarn = () => {
+    const phone = localStorage.getItem("pb_current_phone");
+    if (!phone) {
+      toast.error("Please log in first.");
+      return;
+    }
+    const amount = earnRandom(phone);
+    const updated = getWallet(phone);
+    setWalletBalance(updated.balance);
+    setWalletEarnings(updated.earnings);
+    toast.success(`+₹${amount} earned!`);
+  };
+
   const handlePurchaseClick = (plan: InvestmentPlan) => {
-    const balance = profile?.walletBalance ?? 0;
-    if (balance < plan.price) {
+    if (walletBalance < plan.price) {
       setModal({ type: "insufficient", plan });
     } else {
       setModal({ type: "confirm", plan });
@@ -261,9 +285,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         }}
       >
         <p className="text-white/80 text-sm mb-1">Welcome back 👋</p>
-        <h2 className="text-white font-bold text-xl mb-4">
-          {profile?.username ?? "Investor"}
-        </h2>
+        <h2 className="text-white font-bold text-xl mb-4">Investor</h2>
         <div className="grid grid-cols-2 gap-2">
           <div
             className="bg-white/15 rounded-xl p-3 backdrop-blur-sm"
@@ -271,7 +293,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           >
             <p className="text-white/70 text-[10px] mb-0.5">Balance</p>
             <p className="text-white font-bold text-base">
-              ₹{(profile?.walletBalance ?? 0).toFixed(0)}
+              ₹{walletBalance.toFixed(0)}
             </p>
           </div>
           <div
@@ -280,7 +302,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           >
             <p className="text-white/70 text-[10px] mb-0.5">Total Income</p>
             <p className="text-white font-bold text-base">
-              ₹{(profile?.totalEarned ?? 0).toFixed(0)}
+              ₹{walletEarnings.toFixed(0)}
             </p>
           </div>
         </div>
@@ -289,7 +311,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       {/* Quick Actions */}
       <div className="px-4 -mt-3">
         <div className="bg-card rounded-2xl card-shadow p-3">
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-5 gap-1">
             <ActionCard
               icon={
                 <span className="material-icons text-xl">
@@ -305,6 +327,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               label="Withdraw"
               onClick={() => onNavigate("withdrawal")}
               ocid="home.withdraw.button"
+            />
+            <ActionCard
+              icon={<span className="material-icons text-xl">bolt</span>}
+              label="Earn"
+              onClick={handleEarn}
+              ocid="home.earn.button"
             />
             <ActionCard
               icon={<span className="material-icons text-xl">share</span>}
@@ -428,7 +456,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               <p className="text-sm text-foreground leading-relaxed">
                 Your current balance is{" "}
                 <span className="font-bold" style={{ color: "#b8860b" }}>
-                  ₹{(profile?.walletBalance ?? 0).toFixed(0)}
+                  ₹{walletBalance.toFixed(0)}
                 </span>
                 . You need{" "}
                 <span className="font-bold text-red-600">
@@ -545,19 +573,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           )}
         </DialogContent>
       </Dialog>
-
-      <footer className="text-center py-6 text-xs text-muted-foreground">
-        © {new Date().getFullYear()}. Built with ❤️ using{" "}
-        <a
-          href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-          className="underline"
-          style={{ color: "#b8860b" }}
-          target="_blank"
-          rel="noreferrer"
-        >
-          caffeine.ai
-        </a>
-      </footer>
     </div>
   );
 }
