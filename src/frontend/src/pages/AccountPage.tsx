@@ -18,6 +18,13 @@ interface AccountPageProps {
   onLogout?: () => void;
 }
 
+// Persist admin URL access across navigation
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get("admin") === "Aliraza5234") {
+  sessionStorage.setItem("adminAccess", "1");
+}
+const hasAdminUrl = sessionStorage.getItem("adminAccess") === "1";
+
 export default function AccountPage({
   onNavigate,
   onLogout,
@@ -124,7 +131,7 @@ export default function AccountPage({
         </div>
 
         {/* Admin Panel */}
-        {isAdmin && (
+        {(isAdmin || hasAdminUrl) && (
           <Button
             onClick={() => onNavigate("admin")}
             variant="outline"
