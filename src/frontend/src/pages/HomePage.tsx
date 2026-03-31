@@ -19,7 +19,7 @@ import {
   useCreateInvestment,
   useUserInvestments,
 } from "../hooks/useQueries";
-import { earnRandom, getWallet } from "../utils/wallet";
+import { getWallet } from "../utils/wallet";
 
 function calcDailyIncome(price: number, dailyReturnPct: number): number {
   return (price * dailyReturnPct) / 100;
@@ -142,19 +142,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const activePlans = plans?.filter((p) => p.active) ?? [];
   const activeInvestments = investments?.filter((i) => i.active) ?? [];
 
-  const handleEarn = () => {
-    const phone = localStorage.getItem("pb_current_phone");
-    if (!phone) {
-      toast.error("Please log in first.");
-      return;
-    }
-    const amount = earnRandom(phone);
-    const updated = getWallet(phone);
-    setWalletBalance(updated.balance);
-    setWalletEarnings(updated.earnings);
-    toast.success(`+₹${amount} earned!`);
-  };
-
   const handlePurchaseClick = (plan: InvestmentPlan) => {
     if (walletBalance < plan.price) {
       setModal({ type: "insufficient", plan });
@@ -233,18 +220,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       {/* Quick Actions */}
       <div className="px-4 -mt-3">
         <div className="bg-card rounded-2xl card-shadow p-3">
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid grid-cols-4 gap-1">
             <ActionCard
               icon={<span className="material-icons text-xl">trending_up</span>}
               label="Withdraw"
               onClick={() => onNavigate("withdrawal")}
               ocid="home.withdraw.button"
-            />
-            <ActionCard
-              icon={<span className="material-icons text-xl">bolt</span>}
-              label="Earn"
-              onClick={handleEarn}
-              ocid="home.earn.button"
             />
             <ActionCard
               icon={
