@@ -14,6 +14,7 @@ import type { Page } from "../App";
 import type { InvestmentPlan } from "../backend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
+  useAddOrUpdatePlan,
   useAllPlans,
   useCreateInvestment,
   useUserInvestments,
@@ -57,6 +58,63 @@ const BANNER_SLIDES = [
     name: "Champion's Earnings",
     tagline: "Score big returns every single day",
     gradient: "linear-gradient(135deg, #0a1628 0%, #1a3a6e 100%)",
+  },
+];
+
+const DEFAULT_PLANS: InvestmentPlan[] = [
+  {
+    id: 1n,
+    name: "Group Stage",
+    description: "Entry level plan for new investors",
+    price: 490,
+    dailyReturn: 14.28,
+    durationDays: 30n,
+    active: true,
+  },
+  {
+    id: 2n,
+    name: "Round of 16",
+    description: "Build your momentum with steady gains",
+    price: 990,
+    dailyReturn: 10.0,
+    durationDays: 45n,
+    active: true,
+  },
+  {
+    id: 3n,
+    name: "Quarter Final",
+    description: "Mid-tier plan with strong daily return",
+    price: 2370,
+    dailyReturn: 8.0,
+    durationDays: 60n,
+    active: true,
+  },
+  {
+    id: 4n,
+    name: "Semi Final",
+    description: "High-performance investment plan",
+    price: 4990,
+    dailyReturn: 7.0,
+    durationDays: 90n,
+    active: true,
+  },
+  {
+    id: 5n,
+    name: "World Cup Final",
+    description: "Premium plan for serious investors",
+    price: 9990,
+    dailyReturn: 6.0,
+    durationDays: 120n,
+    active: true,
+  },
+  {
+    id: 6n,
+    name: "Champion's Cup",
+    description: "Ultimate plan — maximum returns",
+    price: 24990,
+    dailyReturn: 5.5,
+    durationDays: 180n,
+    active: true,
   },
 ];
 
@@ -134,6 +192,18 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const { data: investments } = useUserInvestments(userId);
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const createInvestment = useCreateInvestment();
+  const addPlan = useAddOrUpdatePlan();
+  const seededRef = useRef<boolean>(false);
+  const addPlanMutateRef = useRef(addPlan.mutate);
+  addPlanMutateRef.current = addPlan.mutate;
+
+  useEffect(() => {
+    if (!plans || plansLoading || plans.length > 0 || seededRef.current) return;
+    seededRef.current = true;
+    for (const p of DEFAULT_PLANS) {
+      addPlanMutateRef.current(p);
+    }
+  }, [plans, plansLoading]);
 
   const activePlans = plans?.filter((p) => p.active) ?? [];
   const activeInvestments = investments?.filter((i) => i.active) ?? [];
@@ -315,7 +385,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             className="bg-card rounded-2xl p-8 card-shadow text-center"
             data-ocid="plans.empty_state"
           >
-            <p className="text-muted-foreground">No plans available</p>
+            <p className="text-muted-foreground">Loading plans...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
