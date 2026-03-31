@@ -41,13 +41,27 @@ const PageLoader = () => (
 );
 
 export default function App() {
+  // Check for admin URL param or persisted session flag
+  const isAdminUrl =
+    new URLSearchParams(window.location.search).get("admin") ===
+      "Aliraza5234" || sessionStorage.getItem("adminAccess") === "1";
+
+  // Persist admin access across navigation within the session
+  if (
+    new URLSearchParams(window.location.search).get("admin") === "Aliraza5234"
+  ) {
+    sessionStorage.setItem("adminAccess", "1");
+  }
+
   const [isLoggedIn, setIsLoggedIn] = useState(
     () =>
       !!localStorage.getItem("pb_current_phone") ||
       !!localStorage.getItem("pb_phone"),
   );
   const { data: _userProfile } = useUserProfile();
-  const [currentPage, setCurrentPage] = useState<Page>("home");
+  const [currentPage, setCurrentPage] = useState<Page>(
+    isAdminUrl ? "admin" : "home",
+  );
   const [authView, setAuthView] = useState<"login" | "register">("login");
   const [showWelcome, setShowWelcome] = useState(false);
   const [showTelegram, setShowTelegram] = useState(false);
@@ -88,7 +102,12 @@ export default function App() {
           <AuthPage
             view={authView}
             onSwitchView={setAuthView}
-            onLogin={(_phone: string) => setIsLoggedIn(true)}
+            onLogin={(_phone: string) => {
+              setIsLoggedIn(true);
+              if (isAdminUrl) {
+                setCurrentPage("admin");
+              }
+            }}
           />
         </Suspense>
         <Toaster position="top-center" />

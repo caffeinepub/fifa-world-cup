@@ -9,6 +9,7 @@ import {
   User,
   Wallet,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Page } from "../App";
 import { useIsAdmin, useUserProfile } from "../hooks/useQueries";
@@ -18,13 +19,6 @@ interface AccountPageProps {
   onLogout?: () => void;
 }
 
-// Persist admin URL access across navigation
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get("admin") === "Aliraza5234") {
-  sessionStorage.setItem("adminAccess", "1");
-}
-const hasAdminUrl = sessionStorage.getItem("adminAccess") === "1";
-
 export default function AccountPage({
   onNavigate,
   onLogout,
@@ -32,6 +26,19 @@ export default function AccountPage({
   const storedPhone = localStorage.getItem("pb_phone");
   const { data: profile, isLoading } = useUserProfile();
   const { data: isAdmin } = useIsAdmin();
+
+  // Move URL param check inside the component to be React-safe
+  const [hasAdminUrl, setHasAdminUrl] = useState(
+    () => sessionStorage.getItem("adminAccess") === "1",
+  );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("admin") === "Aliraza5234") {
+      sessionStorage.setItem("adminAccess", "1");
+      setHasAdminUrl(true);
+    }
+  }, []);
 
   const shortUid = storedPhone ? storedPhone.slice(-8) : "--------";
 
