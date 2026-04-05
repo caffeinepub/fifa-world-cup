@@ -2,36 +2,52 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle, ArrowLeft, Clock, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { WithdrawalStatus } from "../backend";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
-  useAllWithdrawals,
-  useCreateWithdrawal,
-  useUserProfile,
-} from "../hooks/useQueries";
+  type LocalWithdrawal,
+  addWithdrawal,
+  getLocalWallet,
+  getUserWithdrawals,
+} from "../utils/adminStore";
 
 interface WithdrawalPageProps {
   onBack: () => void;
 }
 
+const statusColor = (s: string) => {
+  if (s === "approved") return "bg-green-100 text-green-700";
+  if (s === "rejected") return "bg-red-100 text-red-700";
+  return "bg-yellow-100 text-yellow-700";
+};
+
 export default function WithdrawalPage({ onBack }: WithdrawalPageProps) {
-  const { identity } = useInternetIdentity();
-  const userId = identity?.getPrincipal().toString();
-  const { data: profile } = useUserProfile();
+  const phone = localStorage.getItem("pb_current_phone") || "";
+  const [balance, setBalance] = useState(0);
   const [amount, setAmount] = useState("");
   const [paymentDetails, setPaymentDetails] = useState("");
-  const withdrawMutation = useCreateWithdrawal();
-  const { data: allWithdrawals, isLoading } = useAllWithdrawals();
+  const [submitting, setSubmitting] = useState(false);
+  const [myWithdrawals, setMyWithdrawals] = useState<LocalWithdrawal[]>([]);
 
-  const myWithdrawals =
-    allWithdrawals?.filter((w) => w.userId.toString() === userId) ?? [];
+  const reloadData = () => {
+    if (phone) {
+      const w = getLocalWallet(phone);
+      setBalance(w.balance);
+      setMyWithdrawals(getUserWithdrawals(phone).slice(0, 10));
+    }
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (phone) {
+      const w = getLocalWallet(phone);
+      setBalance(w.balance);
+      setMyWithdrawals(getUserWithdrawals(phone).slice(0, 10));
+    }
+  }, [phone]);
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number.parseFloat(amount);
     if (Number.isNaN(amt) || amt <= 0) {
@@ -46,25 +62,21 @@ export default function WithdrawalPage({ onBack }: WithdrawalPageProps) {
       toast.error("Enter bank/UPI details");
       return;
     }
-    const result = await withdrawMutation.mutateAsync({
-      amount: amt,
-      paymentDetails,
-    });
-    if (result.__kind__ === "ok") {
-      toast.success("Withdrawal request submitted!");
+    if (!phone) {
+      toast.error("Not logged in");
+      return;
+    }
+    setSubmitting(true);
+    const result = addWithdrawal(phone, amt, paymentDetails);
+    if ("error" in result) {
+      toast.error(result.error);
+    } else {
+      toast.success("Withdrawal request submitted! Awaiting admin approval.");
       setAmount("");
       setPaymentDetails("");
-    } else if (result.__kind__ === "insufficientBalance") {
-      toast.error("Insufficient balance.");
-    } else {
-      toast.error("Please register first.");
+      reloadData();
     }
-  };
-
-  const statusColor = (s: WithdrawalStatus) => {
-    if (s === WithdrawalStatus.approved) return "bg-green-100 text-green-700";
-    if (s === WithdrawalStatus.rejected) return "bg-red-100 text-red-700";
-    return "bg-yellow-100 text-yellow-700";
+    setSubmitting(false);
   };
 
   return (
@@ -82,7 +94,6 @@ export default function WithdrawalPage({ onBack }: WithdrawalPageProps) {
       </div>
 
       <div className="px-4 mt-4 space-y-4">
-        {/* Notice Card */}
         <div
           className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2"
           data-ocid="withdrawal.notice.card"
@@ -112,15 +123,11 @@ export default function WithdrawalPage({ onBack }: WithdrawalPageProps) {
           </div>
         </div>
 
-        {/* Balance Info */}
         <div className="green-gradient rounded-2xl p-4 text-white">
           <p className="text-white/70 text-sm">Available Balance</p>
-          <p className="text-3xl font-bold">
-            ₹{(profile?.walletBalance ?? 0).toFixed(2)}
-          </p>
+          <p className="text-3xl font-bold">₹{balance.toFixed(2)}</p>
         </div>
 
-        {/* Form */}
         <form
           onSubmit={handleSubmit}
           className="bg-card rounded-2xl p-4 card-shadow space-y-4"
@@ -144,7 +151,8 @@ export default function WithdrawalPage({ onBack }: WithdrawalPageProps) {
               id="payDetails"
               value={paymentDetails}
               onChange={(e) => setPaymentDetails(e.target.value)}
-              placeholder="Bank: XXXX, Account: XXXX, IFSC: XXXX&#10;or UPI: yourname@upi"
+              placeholder="Bank: XXXX, Account: XXXX, IFSC: XXXX
+or UPI: yourname@upi"
               className="mt-1 min-h-[80px]"
               data-ocid="withdrawal.details.textarea"
             />
@@ -152,17 +160,16 @@ export default function WithdrawalPage({ onBack }: WithdrawalPageProps) {
           <Button
             type="submit"
             className="w-full green-gradient text-white border-0 font-semibold h-11"
-            disabled={withdrawMutation.isPending}
+            disabled={submitting}
             data-ocid="withdrawal.submit_button"
           >
-            {withdrawMutation.isPending ? (
+            {submitting ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : null}
             Submit Withdrawal
           </Button>
         </form>
 
-        {/* History */}
         <div className="bg-card rounded-2xl p-4 card-shadow">
           <div className="flex items-center gap-2 mb-3">
             <Clock className="w-4 h-4 text-muted-foreground" />
@@ -170,13 +177,7 @@ export default function WithdrawalPage({ onBack }: WithdrawalPageProps) {
               Withdrawal History
             </h3>
           </div>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : myWithdrawals.length === 0 ? (
+          {myWithdrawals.length === 0 ? (
             <p
               className="text-center text-muted-foreground text-sm py-4"
               data-ocid="withdrawals.empty_state"
@@ -187,7 +188,7 @@ export default function WithdrawalPage({ onBack }: WithdrawalPageProps) {
             <div className="space-y-2">
               {myWithdrawals.map((w, i) => (
                 <div
-                  key={w.id.toString()}
+                  key={w.id}
                   className="flex items-center justify-between py-2 border-b border-border last:border-0"
                   data-ocid={`withdrawals.item.${i + 1}`}
                 >

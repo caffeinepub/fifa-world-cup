@@ -8,14 +8,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   Check,
   IndianRupee,
-  Loader2,
   Plus,
   TrendingDown,
   TrendingUp,
@@ -23,37 +20,30 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { RechargeStatus, WithdrawalStatus } from "../backend";
-import type { InvestmentPlan } from "../backend";
 import {
-  useAddOrUpdatePlan,
-  useAllPlans,
-  useAllRecharges,
-  useAllUsers,
-  useAllWithdrawals,
-  useApproveRecharge,
-  useApproveWithdrawal,
-  useRejectRecharge,
-  useRejectWithdrawal,
-} from "../hooks/useQueries";
+  type LocalRecharge,
+  type LocalUser,
+  type LocalWithdrawal,
+  approveRechargeLocal,
+  approveWithdrawalLocal,
+  deleteUser,
+  getAllLocalUsers,
+  getAllRecharges,
+  getAllWithdrawals,
+  rejectRechargeLocal,
+  rejectWithdrawalLocal,
+  updateUserBalance,
+} from "../utils/adminStore";
 
 interface AdminPageProps {
   onBack: () => void;
 }
 
-const EMPTY_PLAN: InvestmentPlan = {
-  id: BigInt(0),
-  name: "",
-  description: "",
-  price: 0,
-  dailyReturn: 0,
-  durationDays: BigInt(30),
-  active: true,
-};
+type RechargeFilter = "all" | "pending" | "completed" | "failed";
+type WithdrawalFilter = "all" | "pending" | "approved" | "rejected";
 
-function formatTimestamp(ts: bigint): string {
-  const ms = Number(ts / BigInt(1_000_000));
-  return new Date(ms).toLocaleString("en-IN", {
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -62,128 +52,104 @@ function formatTimestamp(ts: bigint): string {
   });
 }
 
-function truncateUserId(id: { toString(): string }): string {
-  const s = id.toString();
-  return s.length > 12 ? `${s.slice(0, 12)}...` : s;
-}
-
-type RechargeFilter = "all" | "pending" | "completed" | "failed";
-type WithdrawalFilter = "all" | "pending" | "approved" | "rejected";
-
 export default function AdminPage({ onBack }: AdminPageProps) {
-  const { data: plans, isLoading: plansLoading } = useAllPlans();
-  const { data: recharges, isLoading: rechargesLoading } = useAllRecharges();
-  const { data: withdrawals, isLoading: withdrawalsLoading } =
-    useAllWithdrawals();
-  const { data: users, isLoading: usersLoading } = useAllUsers();
-
-  const approveRecharge = useApproveRecharge();
-  const rejectRecharge = useRejectRecharge();
-  const approveWithdrawal = useApproveWithdrawal();
-  const rejectWithdrawal = useRejectWithdrawal();
-  const addPlan = useAddOrUpdatePlan();
-
-  const [planDialog, setPlanDialog] = useState(false);
-  const [planForm, setPlanForm] = useState<InvestmentPlan>(EMPTY_PLAN);
+  const [recharges, setRecharges] = useState<LocalRecharge[]>(() =>
+    [...getAllRecharges()].sort((a, b) => b.timestamp - a.timestamp),
+  );
+  const [withdrawals, setWithdrawals] = useState<LocalWithdrawal[]>(() =>
+    [...getAllWithdrawals()].sort((a, b) => b.timestamp - a.timestamp),
+  );
+  const [users, setUsers] = useState<LocalUser[]>(() => getAllLocalUsers());
   const [rechargeFilter, setRechargeFilter] = useState<RechargeFilter>("all");
   const [withdrawalFilter, setWithdrawalFilter] =
     useState<WithdrawalFilter>("all");
 
-  const allRechargesSorted = [...(recharges ?? [])].sort((a, b) =>
-    Number(b.id - a.id),
-  );
-  const allWithdrawalsSorted = [...(withdrawals ?? [])].sort((a, b) =>
-    Number(b.id - a.id),
-  );
+  // Edit balance dialog
+  const [editUser, setEditUser] = useState<LocalUser | null>(null);
+  const [editBalance, setEditBalance] = useState("");
 
-  const pendingRecharges = allRechargesSorted.filter(
-    (r) => r.status === RechargeStatus.pending,
-  );
-  const pendingWithdrawals = allWithdrawalsSorted.filter(
-    (w) => w.status === WithdrawalStatus.pending,
-  );
-
-  const filteredRecharges = allRechargesSorted.filter((r) => {
-    if (rechargeFilter === "all") return true;
-    return r.status === rechargeFilter;
-  });
-
-  const filteredWithdrawals = allWithdrawalsSorted.filter((w) => {
-    if (withdrawalFilter === "all") return true;
-    return w.status === withdrawalFilter;
-  });
-
-  const totalApprovedAmount = allRechargesSorted
-    .filter((r) => r.status === RechargeStatus.completed)
-    .reduce((sum, r) => sum + r.amount, 0);
-
-  const totalPaidOut = allWithdrawalsSorted
-    .filter((w) => w.status === WithdrawalStatus.approved)
-    .reduce((sum, w) => sum + w.amount, 0);
-
-  const handleApproveRecharge = async (id: bigint) => {
-    try {
-      await approveRecharge.mutateAsync(id);
-      toast.success("Recharge approved!");
-    } catch {
-      toast.error("Failed to approve recharge.");
-    }
+  const reload = () => {
+    setRecharges(
+      [...getAllRecharges()].sort((a, b) => b.timestamp - a.timestamp),
+    );
+    setWithdrawals(
+      [...getAllWithdrawals()].sort((a, b) => b.timestamp - a.timestamp),
+    );
+    setUsers(getAllLocalUsers());
   };
 
-  const handleRejectRecharge = async (id: bigint) => {
-    if (!window.confirm("Reject this recharge? This cannot be undone.")) return;
-    try {
-      await rejectRecharge.mutateAsync(id);
-      toast.success("Recharge rejected.");
-    } catch {
-      toast.error("Failed to reject recharge.");
-    }
+  const pendingRecharges = recharges.filter((r) => r.status === "pending");
+  const pendingWithdrawals = withdrawals.filter((w) => w.status === "pending");
+
+  const filteredRecharges = recharges.filter((r) =>
+    rechargeFilter === "all" ? true : r.status === rechargeFilter,
+  );
+  const filteredWithdrawals = withdrawals.filter((w) =>
+    withdrawalFilter === "all" ? true : w.status === withdrawalFilter,
+  );
+
+  const totalApproved = recharges
+    .filter((r) => r.status === "completed")
+    .reduce((s, r) => s + r.amount, 0);
+  const totalPaidOut = withdrawals
+    .filter((w) => w.status === "approved")
+    .reduce((s, w) => s + w.amount, 0);
+
+  const handleApproveRecharge = (id: string) => {
+    approveRechargeLocal(id);
+    toast.success("Recharge approved!");
+    reload();
   };
 
-  const handleApproveWithdrawal = async (id: bigint) => {
-    try {
-      await approveWithdrawal.mutateAsync(id);
-      toast.success("Withdrawal approved!");
-    } catch {
-      toast.error("Failed to approve withdrawal.");
-    }
+  const handleRejectRecharge = (id: string) => {
+    if (!window.confirm("Reject this recharge?")) return;
+    rejectRechargeLocal(id);
+    toast.success("Recharge rejected.");
+    reload();
   };
 
-  const handleRejectWithdrawal = async (id: bigint) => {
-    if (
-      !window.confirm(
-        "Reject this withdrawal? The amount will be refunded to user.",
-      )
-    )
+  const handleApproveWithdrawal = (id: string) => {
+    approveWithdrawalLocal(id);
+    toast.success("Withdrawal approved!");
+    reload();
+  };
+
+  const handleRejectWithdrawal = (id: string) => {
+    if (!window.confirm("Reject this withdrawal? Amount will be refunded."))
       return;
-    try {
-      await rejectWithdrawal.mutateAsync(id);
-      toast.success("Withdrawal rejected. Amount refunded.");
-    } catch {
-      toast.error("Failed to reject withdrawal.");
-    }
+    rejectWithdrawalLocal(id);
+    toast.success("Withdrawal rejected. Amount refunded.");
+    reload();
   };
 
-  const handleSavePlan = async () => {
-    if (!planForm.name.trim()) {
-      toast.error("Plan name required");
+  const handleSaveBalance = () => {
+    if (!editUser) return;
+    const val = Number.parseFloat(editBalance);
+    if (Number.isNaN(val) || val < 0) {
+      toast.error("Enter a valid balance");
       return;
     }
-    if (planForm.price <= 0) {
-      toast.error("Valid price required");
-      return;
-    }
-    try {
-      await addPlan.mutateAsync(planForm);
-      toast.success("Plan saved!");
-      setPlanDialog(false);
-      setPlanForm(EMPTY_PLAN);
-    } catch {
-      toast.error("Failed to save plan.");
-    }
+    updateUserBalance(editUser.phone, val);
+    toast.success("Balance updated!");
+    setEditUser(null);
+    reload();
   };
 
-  const rechargeStatusBadge = (status: string) => {
+  const handleDeleteUser = (phone: string) => {
+    if (!window.confirm(`Delete user ${phone}? This cannot be undone.`)) return;
+    deleteUser(phone);
+    toast.success("User deleted.");
+    reload();
+  };
+
+  const filterBtn = (active: boolean) =>
+    `px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+      active
+        ? "bg-primary text-white"
+        : "bg-muted text-muted-foreground hover:bg-muted/80"
+    }`;
+
+  const rechargeBadge = (status: string) => {
     if (status === "completed")
       return (
         <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">
@@ -203,7 +169,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
     );
   };
 
-  const withdrawalStatusBadge = (status: string) => {
+  const withdrawalBadge = (status: string) => {
     if (status === "approved")
       return (
         <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">
@@ -223,13 +189,6 @@ export default function AdminPage({ onBack }: AdminPageProps) {
     );
   };
 
-  const filterBtn = (active: boolean) =>
-    `px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-      active
-        ? "bg-primary text-white"
-        : "bg-muted text-muted-foreground hover:bg-muted/80"
-    }`;
-
   return (
     <div className="pb-4">
       <div className="flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
@@ -248,11 +207,8 @@ export default function AdminPage({ onBack }: AdminPageProps) {
       </div>
 
       <div className="px-4 mt-4">
-        <Tabs defaultValue="plans">
-          <TabsList className="grid grid-cols-4 w-full mb-4">
-            <TabsTrigger value="plans" data-ocid="admin.plans.tab">
-              Plans
-            </TabsTrigger>
+        <Tabs defaultValue="recharges">
+          <TabsList className="grid grid-cols-3 w-full mb-4">
             <TabsTrigger value="recharges" data-ocid="admin.recharges.tab">
               Recharges
               {pendingRecharges.length > 0 && (
@@ -274,83 +230,12 @@ export default function AdminPage({ onBack }: AdminPageProps) {
             </TabsTrigger>
           </TabsList>
 
-          {/* Plans Tab */}
-          <TabsContent value="plans">
-            <div className="flex justify-end mb-3">
-              <Button
-                onClick={() => {
-                  setPlanForm(EMPTY_PLAN);
-                  setPlanDialog(true);
-                }}
-                className="green-gradient text-white border-0 font-semibold"
-                data-ocid="admin.plan.add.button"
-              >
-                <Plus className="w-4 h-4 mr-1" /> Add Plan
-              </Button>
-            </div>
-            {plansLoading ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : plans?.length === 0 ? (
-              <p
-                className="text-center text-muted-foreground py-8"
-                data-ocid="admin.plans.empty_state"
-              >
-                No plans yet
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {plans?.map((plan, i) => (
-                  <div
-                    key={plan.id.toString()}
-                    className="bg-card rounded-xl p-3 card-shadow flex items-center justify-between"
-                    data-ocid={`admin.plans.item.${i + 1}`}
-                  >
-                    <div>
-                      <p className="font-semibold text-sm">{plan.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        ₹{plan.price} · {plan.dailyReturn}%/day ·{" "}
-                        {plan.durationDays.toString()}d
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        className={
-                          plan.active
-                            ? "bg-green-100 text-green-700 border-0"
-                            : "bg-gray-800 text-gray-400 border-0"
-                        }
-                      >
-                        {plan.active ? "Active" : "Inactive"}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setPlanForm(plan);
-                          setPlanDialog(true);
-                        }}
-                        data-ocid={`admin.plans.edit.button.${i + 1}`}
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
           {/* Recharges Tab */}
           <TabsContent value="recharges">
-            {/* Summary Stats */}
             <div className="grid grid-cols-3 gap-2 mb-4">
               <div className="bg-card rounded-xl p-3 card-shadow text-center">
                 <p className="text-lg font-bold text-primary">
-                  {allRechargesSorted.length}
+                  {recharges.length}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Total</p>
               </div>
@@ -362,17 +247,13 @@ export default function AdminPage({ onBack }: AdminPageProps) {
               </div>
               <div className="bg-card rounded-xl p-3 card-shadow text-center">
                 <p className="text-lg font-bold text-blue-600">
-                  ₹{totalApprovedAmount.toFixed(0)}
+                  ₹{totalApproved.toFixed(0)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Approved</p>
               </div>
             </div>
 
-            {/* Filter Buttons */}
-            <div
-              className="flex gap-2 mb-3 flex-wrap"
-              data-ocid="admin.recharges.filter.tab"
-            >
+            <div className="flex gap-2 mb-3 flex-wrap">
               {(
                 ["all", "pending", "completed", "failed"] as RechargeFilter[]
               ).map((f) => (
@@ -387,13 +268,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
               ))}
             </div>
 
-            {rechargesLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : filteredRecharges.length === 0 ? (
+            {filteredRecharges.length === 0 ? (
               <p
                 className="text-center text-muted-foreground py-8"
                 data-ocid="admin.recharges.empty_state"
@@ -404,7 +279,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
               <div className="space-y-2">
                 {filteredRecharges.map((r, i) => (
                   <div
-                    key={r.id.toString()}
+                    key={r.id}
                     className="bg-card rounded-xl p-3 card-shadow"
                     data-ocid={`admin.recharges.item.${i + 1}`}
                   >
@@ -418,7 +293,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                             <p className="font-bold text-base text-foreground">
                               ₹{r.amount.toFixed(2)}
                             </p>
-                            {rechargeStatusBadge(r.status)}
+                            {rechargeBadge(r.status)}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Ref:{" "}
@@ -427,49 +302,31 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                             </span>
                           </p>
                           <p className="text-[10px] text-muted-foreground">
-                            User: {truncateUserId(r.userId)}
+                            Phone: {r.phone}
                           </p>
                           <p className="text-[10px] text-muted-foreground">
-                            {formatTimestamp(r.timestamp)}
+                            {formatTime(r.timestamp)}
                           </p>
                         </div>
                       </div>
-                      {r.status === RechargeStatus.pending && (
+                      {r.status === "pending" && (
                         <div className="flex flex-col gap-1 shrink-0">
                           <Button
                             size="sm"
                             onClick={() => handleApproveRecharge(r.id)}
-                            className="green-gradient text-white border-0 h-7 text-xs px-2"
-                            disabled={
-                              approveRecharge.isPending ||
-                              rejectRecharge.isPending
-                            }
+                            className="bg-green-600 hover:bg-green-700 text-white border-0 h-7 text-xs px-2"
                             data-ocid={`admin.recharges.approve.button.${i + 1}`}
                           >
-                            {approveRecharge.isPending ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Check className="w-3 h-3 mr-1" />
-                            )}
-                            Approve
+                            <Check className="w-3 h-3 mr-1" /> Approve
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => handleRejectRecharge(r.id)}
                             className="h-7 text-xs px-2"
-                            disabled={
-                              approveRecharge.isPending ||
-                              rejectRecharge.isPending
-                            }
                             data-ocid={`admin.recharges.delete.button.${i + 1}`}
                           >
-                            {rejectRecharge.isPending ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <X className="w-3 h-3 mr-1" />
-                            )}
-                            Reject
+                            <X className="w-3 h-3 mr-1" /> Reject
                           </Button>
                         </div>
                       )}
@@ -482,11 +339,10 @@ export default function AdminPage({ onBack }: AdminPageProps) {
 
           {/* Withdrawals Tab */}
           <TabsContent value="withdrawals">
-            {/* Summary Stats */}
             <div className="grid grid-cols-3 gap-2 mb-4">
               <div className="bg-card rounded-xl p-3 card-shadow text-center">
                 <p className="text-lg font-bold text-primary">
-                  {allWithdrawalsSorted.length}
+                  {withdrawals.length}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Total</p>
               </div>
@@ -504,11 +360,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
               </div>
             </div>
 
-            {/* Filter Buttons */}
-            <div
-              className="flex gap-2 mb-3 flex-wrap"
-              data-ocid="admin.withdrawals.filter.tab"
-            >
+            <div className="flex gap-2 mb-3 flex-wrap">
               {(
                 ["all", "pending", "approved", "rejected"] as WithdrawalFilter[]
               ).map((f) => (
@@ -523,13 +375,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
               ))}
             </div>
 
-            {withdrawalsLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : filteredWithdrawals.length === 0 ? (
+            {filteredWithdrawals.length === 0 ? (
               <p
                 className="text-center text-muted-foreground py-8"
                 data-ocid="admin.withdrawals.empty_state"
@@ -540,7 +386,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
               <div className="space-y-2">
                 {filteredWithdrawals.map((w, i) => (
                   <div
-                    key={w.id.toString()}
+                    key={w.id}
                     className="bg-card rounded-xl p-3 card-shadow"
                     data-ocid={`admin.withdrawals.item.${i + 1}`}
                   >
@@ -554,55 +400,37 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                             <p className="font-bold text-base text-foreground">
                               ₹{w.amount.toFixed(2)}
                             </p>
-                            {withdrawalStatusBadge(w.status)}
+                            {withdrawalBadge(w.status)}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5 max-w-[200px] break-words">
                             {w.paymentDetails}
                           </p>
                           <p className="text-[10px] text-muted-foreground">
-                            User: {truncateUserId(w.userId)}
+                            Phone: {w.phone}
                           </p>
                           <p className="text-[10px] text-muted-foreground">
-                            {formatTimestamp(w.timestamp)}
+                            {formatTime(w.timestamp)}
                           </p>
                         </div>
                       </div>
-                      {w.status === WithdrawalStatus.pending && (
+                      {w.status === "pending" && (
                         <div className="flex flex-col gap-1 shrink-0">
                           <Button
                             size="sm"
                             onClick={() => handleApproveWithdrawal(w.id)}
-                            className="green-gradient text-white border-0 h-7 text-xs px-2"
-                            disabled={
-                              approveWithdrawal.isPending ||
-                              rejectWithdrawal.isPending
-                            }
+                            className="bg-green-600 hover:bg-green-700 text-white border-0 h-7 text-xs px-2"
                             data-ocid={`admin.withdrawals.approve.button.${i + 1}`}
                           >
-                            {approveWithdrawal.isPending ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Check className="w-3 h-3 mr-1" />
-                            )}
-                            Approve
+                            <Check className="w-3 h-3 mr-1" /> Approve
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => handleRejectWithdrawal(w.id)}
                             className="h-7 text-xs px-2"
-                            disabled={
-                              approveWithdrawal.isPending ||
-                              rejectWithdrawal.isPending
-                            }
                             data-ocid={`admin.withdrawals.delete.button.${i + 1}`}
                           >
-                            {rejectWithdrawal.isPending ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <X className="w-3 h-3 mr-1" />
-                            )}
-                            Reject
+                            <X className="w-3 h-3 mr-1" /> Reject
                           </Button>
                         </div>
                       )}
@@ -615,13 +443,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
 
           {/* Users Tab */}
           <TabsContent value="users">
-            {usersLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-14 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : users?.length === 0 ? (
+            {users.length === 0 ? (
               <p
                 className="text-center text-muted-foreground py-8"
                 data-ocid="admin.users.empty_state"
@@ -630,31 +452,44 @@ export default function AdminPage({ onBack }: AdminPageProps) {
               </p>
             ) : (
               <div className="space-y-2">
-                {users?.map((user, i) => (
+                {users.map((user, i) => (
                   <div
-                    key={user.referralCode}
+                    key={user.phone}
                     className="bg-card rounded-xl p-3 card-shadow"
                     data-ocid={`admin.users.item.${i + 1}`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-sm">
-                          {user.username || "FIFA Member"}
-                        </p>
+                        <p className="font-semibold text-sm">{user.phone}</p>
                         <p className="text-xs text-muted-foreground">
-                          {user.phone
-                            ? `****${user.phone.slice(-4)}`
-                            : "------"}{" "}
-                          · Code: {user.referralCode}
+                          Code: {user.referral || "—"}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-1">
                         <p className="text-xs text-primary font-semibold">
-                          ₹{user.walletBalance.toFixed(2)}
+                          ₹{user.balance.toFixed(2)}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          Balance
-                        </p>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-[10px] px-2"
+                            onClick={() => {
+                              setEditUser(user);
+                              setEditBalance(user.balance.toFixed(2));
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-6 text-[10px] px-2"
+                            onClick={() => handleDeleteUser(user.phone)}
+                          >
+                            Del
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -665,121 +500,44 @@ export default function AdminPage({ onBack }: AdminPageProps) {
         </Tabs>
       </div>
 
-      {/* Add/Edit Plan Dialog */}
-      <Dialog open={planDialog} onOpenChange={setPlanDialog}>
-        <DialogContent
-          className="max-w-[380px] rounded-2xl mx-auto"
-          data-ocid="admin.plan.dialog"
-        >
+      {/* Edit Balance Dialog */}
+      <Dialog
+        open={!!editUser}
+        onOpenChange={(o) => {
+          if (!o) setEditUser(null);
+        }}
+      >
+        <DialogContent className="max-w-[340px] rounded-2xl mx-auto">
           <DialogHeader>
-            <DialogTitle>
-              {planForm.id === BigInt(0) ? "Add" : "Edit"} Investment Plan
-            </DialogTitle>
+            <DialogTitle>Edit Balance</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              User: {editUser?.phone}
+            </p>
             <div>
-              <Label>Plan Name</Label>
-              <Input
-                value={planForm.name}
-                onChange={(e) =>
-                  setPlanForm((p) => ({ ...p, name: e.target.value }))
-                }
-                placeholder="e.g. Starter Plan"
-                className="mt-1"
-                data-ocid="admin.plan.name.input"
-              />
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Input
-                value={planForm.description}
-                onChange={(e) =>
-                  setPlanForm((p) => ({ ...p, description: e.target.value }))
-                }
-                placeholder="Brief description"
-                className="mt-1"
-                data-ocid="admin.plan.desc.input"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Price (₹)</Label>
-                <Input
-                  type="number"
-                  value={planForm.price}
-                  onChange={(e) =>
-                    setPlanForm((p) => ({
-                      ...p,
-                      price: Number.parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className="mt-1"
-                  data-ocid="admin.plan.price.input"
-                />
-              </div>
-              <div>
-                <Label>Daily Return (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={planForm.dailyReturn}
-                  onChange={(e) =>
-                    setPlanForm((p) => ({
-                      ...p,
-                      dailyReturn: Number.parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className="mt-1"
-                  data-ocid="admin.plan.return.input"
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Duration (days)</Label>
+              <Label>New Balance (₹)</Label>
               <Input
                 type="number"
-                value={planForm.durationDays.toString()}
-                onChange={(e) =>
-                  setPlanForm((p) => ({
-                    ...p,
-                    durationDays: BigInt(e.target.value || 0),
-                  }))
-                }
+                value={editBalance}
+                onChange={(e) => setEditBalance(e.target.value)}
                 className="mt-1"
-                data-ocid="admin.plan.duration.input"
+                autoFocus
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={planForm.active}
-                onCheckedChange={(checked) =>
-                  setPlanForm((p) => ({ ...p, active: checked }))
-                }
-                data-ocid="admin.plan.active.switch"
-              />
-              <Label>Active</Label>
-            </div>
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => setPlanDialog(false)}
                 className="flex-1"
-                data-ocid="admin.plan.cancel.button"
+                onClick={() => setEditUser(null)}
               >
-                <X className="w-4 h-4 mr-1" /> Cancel
+                Cancel
               </Button>
               <Button
-                onClick={handleSavePlan}
-                disabled={addPlan.isPending}
-                className="flex-1 green-gradient text-white border-0"
-                data-ocid="admin.plan.save.button"
+                className="flex-1 bg-primary text-white"
+                onClick={handleSaveBalance}
               >
-                {addPlan.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                ) : (
-                  <Check className="w-4 h-4 mr-1" />
-                )}
-                Save Plan
+                <IndianRupee className="w-4 h-4 mr-1" /> Save
               </Button>
             </div>
           </div>

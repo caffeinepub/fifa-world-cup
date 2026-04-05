@@ -2,20 +2,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  AlertCircle,
-  ArrowLeft,
-  Clock,
-  Loader2,
-  RefreshCw,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, Clock, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { RechargeStatus } from "../backend";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useAllRecharges, useInitiateRecharge } from "../hooks/useQueries";
-import { getWallet, setWallet } from "../utils/wallet";
+import {
+  type LocalRecharge,
+  addRecharge,
+  getUserRecharges,
+} from "../utils/adminStore";
 
 const QUICK_AMOUNTS = [490, 500, 1000, 2000, 5000];
 
@@ -44,39 +38,42 @@ const PAYMENT_METHODS = [
 ];
 
 function generateTxnId(): string {
-  const ts = Date.now();
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `TXN-${ts}-${rand}`;
+  return `TXN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
 interface RechargePageProps {
   onBack: () => void;
 }
 
+const statusColor = (s: string) => {
+  if (s === "completed") return "bg-green-100 text-green-700";
+  if (s === "failed") return "bg-red-100 text-red-700";
+  return "bg-yellow-100 text-yellow-700";
+};
+
 export default function RechargePage({ onBack }: RechargePageProps) {
-  const { identity } = useInternetIdentity();
-  const userId = identity?.getPrincipal().toString();
+  const phone = localStorage.getItem("pb_current_phone") || "";
   const [amount, setAmount] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("pay-j");
   const [txnId, setTxnId] = useState<string>(() => generateTxnId());
-  const rechargeMutation = useInitiateRecharge();
-  const { data: allRecharges, isLoading } = useAllRecharges();
+  const [submitting, setSubmitting] = useState(false);
+  const [myRecharges, setMyRecharges] = useState<LocalRecharge[]>([]);
+
+  useEffect(() => {
+    if (phone) setMyRecharges(getUserRecharges(phone).slice(0, 5));
+  }, [phone]);
 
   const regenerateTxnId = useCallback(() => {
     const newId = generateTxnId();
     setTxnId(newId);
   }, []);
 
-  // Auto-prepend txnId into paymentRef whenever txnId changes
   useEffect(() => {
     setPaymentRef(txnId);
   }, [txnId]);
 
-  const myRecharges =
-    allRecharges?.filter((r) => r.userId.toString() === userId) ?? [];
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number.parseFloat(amount);
     if (Number.isNaN(amt) || amt <= 0) {
@@ -87,39 +84,26 @@ export default function RechargePage({ onBack }: RechargePageProps) {
       toast.error("Minimum deposit amount is ₹490");
       return;
     }
-    const ref = paymentRef.trim() || txnId;
-    try {
-      await rechargeMutation.mutateAsync({ amount: amt, paymentRef: ref });
-      const phone = localStorage.getItem("pb_current_phone") || "";
-      if (phone) {
-        const wallet = getWallet(phone) as {
-          balance: number;
-          earnings: number;
-          totalRecharged?: number;
-        };
-        wallet.balance += amt;
-        wallet.totalRecharged = (wallet.totalRecharged ?? 0) + amt;
-        setWallet(phone, wallet);
-      }
-      toast.success(`Recharge of ₹${amt} added to your wallet!`);
-      setAmount("");
-      regenerateTxnId();
-    } catch {
-      toast.error("Failed to submit recharge. Try again.");
+    if (!phone) {
+      toast.error("Not logged in");
+      return;
     }
-  };
-
-  const statusColor = (s: RechargeStatus) => {
-    if (s === RechargeStatus.completed) return "bg-green-100 text-green-700";
-    if (s === RechargeStatus.failed) return "bg-red-100 text-red-700";
-    return "bg-yellow-100 text-yellow-700";
+    setSubmitting(true);
+    const ref = paymentRef.trim() || txnId;
+    addRecharge(phone, amt, ref);
+    toast.success(
+      `Recharge request of ₹${amt} submitted! Awaiting admin approval.`,
+    );
+    setAmount("");
+    regenerateTxnId();
+    if (phone) setMyRecharges(getUserRecharges(phone).slice(0, 5));
+    setSubmitting(false);
   };
 
   const activeMethod = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
 
   return (
     <div className="pb-4">
-      {/* Back header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
         <Button
           variant="ghost"
@@ -133,7 +117,6 @@ export default function RechargePage({ onBack }: RechargePageProps) {
       </div>
 
       <div className="px-4 mt-4 space-y-4">
-        {/* Minimum Deposit Notice */}
         <div
           className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4"
           data-ocid="recharge.notice.card"
@@ -215,7 +198,6 @@ export default function RechargePage({ onBack }: RechargePageProps) {
             </div>
           </div>
 
-          {/* Transaction ID */}
           <div
             className="mt-4 rounded-xl p-3"
             style={{
@@ -237,8 +219,7 @@ export default function RechargePage({ onBack }: RechargePageProps) {
                 }}
                 data-ocid="recharge.txnid.button"
               >
-                <RefreshCw className="w-3 h-3" />
-                Generate New ID
+                <RefreshCw className="w-3 h-3" /> Generate New ID
               </button>
             </div>
             <p
@@ -249,17 +230,16 @@ export default function RechargePage({ onBack }: RechargePageProps) {
               {txnId}
             </p>
             <p className="text-[10px] text-muted-foreground mt-1">
-              📋 Note this ID before making payment. It will be auto-filled in
-              the reference field below.
+              📋 Note this ID before making payment. It will be auto-filled
+              below.
             </p>
           </div>
-
           <p className="text-xs text-muted-foreground mt-3 bg-yellow-900/20 rounded-lg p-2">
             ⚠️ Make the payment first, then enter the UTR/Reference number below.
           </p>
         </div>
 
-        {/* Recharge Form */}
+        {/* Form */}
         <form
           onSubmit={handleSubmit}
           className="bg-card rounded-2xl p-4 card-shadow space-y-4"
@@ -309,20 +289,13 @@ export default function RechargePage({ onBack }: RechargePageProps) {
               className="mt-1 font-mono text-sm"
               data-ocid="recharge.ref.input"
             />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Auto-filled with your Transaction ID. You can replace it with your
-              UTR after payment.
-            </p>
           </div>
           <Button
             type="submit"
             className="w-full green-gradient text-white border-0 font-semibold h-11"
-            disabled={rechargeMutation.isPending}
+            disabled={submitting}
             data-ocid="recharge.submit_button"
           >
-            {rechargeMutation.isPending ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : null}
             Submit Recharge Request
           </Button>
         </form>
@@ -333,13 +306,7 @@ export default function RechargePage({ onBack }: RechargePageProps) {
             <Clock className="w-4 h-4 text-muted-foreground" />
             <h3 className="font-semibold text-foreground">Recharge History</h3>
           </div>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : myRecharges.length === 0 ? (
+          {myRecharges.length === 0 ? (
             <p
               className="text-center text-muted-foreground text-sm py-4"
               data-ocid="recharges.empty_state"
@@ -350,7 +317,7 @@ export default function RechargePage({ onBack }: RechargePageProps) {
             <div className="space-y-2">
               {myRecharges.map((r, i) => (
                 <div
-                  key={r.id.toString()}
+                  key={r.id}
                   className="flex items-center justify-between py-2 border-b border-border last:border-0"
                   data-ocid={`recharges.item.${i + 1}`}
                 >

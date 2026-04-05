@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   BanknoteIcon,
   ChevronRight,
@@ -14,14 +13,13 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Page } from "../App";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
-  useAllRecharges,
-  useAllWithdrawals,
-  useIsAdmin,
-  useUserProfile,
-} from "../hooks/useQueries";
-import { getWallet } from "../utils/wallet";
+  type LocalRecharge,
+  type LocalWithdrawal,
+  getLocalWallet,
+  getUserRecharges,
+  getUserWithdrawals,
+} from "../utils/adminStore";
 
 interface AccountPageProps {
   onNavigate: (page: Page) => void;
@@ -32,19 +30,14 @@ export default function AccountPage({
   onNavigate,
   onLogout,
 }: AccountPageProps) {
-  const { data: profile, isLoading } = useUserProfile();
-  const { data: isAdmin } = useIsAdmin();
-  const { identity } = useInternetIdentity();
-  const { data: recharges, isLoading: rechargesLoading } = useAllRecharges();
-  const { data: withdrawals, isLoading: withdrawalsLoading } =
-    useAllWithdrawals();
-
+  const phone = localStorage.getItem("pb_current_phone") || "";
   const [hasAdminUrl, setHasAdminUrl] = useState(
     () => sessionStorage.getItem("adminAccess") === "1",
   );
-
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletEarnings, setWalletEarnings] = useState(0);
+  const [myRecharges, setMyRecharges] = useState<LocalRecharge[]>([]);
+  const [myWithdrawals, setMyWithdrawals] = useState<LocalWithdrawal[]>([]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -52,23 +45,14 @@ export default function AccountPage({
       sessionStorage.setItem("adminAccess", "1");
       setHasAdminUrl(true);
     }
-    const phone = localStorage.getItem("pb_current_phone");
     if (phone) {
-      const w = getWallet(phone);
+      const w = getLocalWallet(phone);
       setWalletBalance(w.balance);
       setWalletEarnings(w.earnings);
+      setMyRecharges(getUserRecharges(phone).slice(0, 5));
+      setMyWithdrawals(getUserWithdrawals(phone).slice(0, 5));
     }
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="px-4 py-4 space-y-3">
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-2xl" />
-        ))}
-      </div>
-    );
-  }
+  }, [phone]);
 
   const handleLogout = () => {
     localStorage.removeItem("pb_phone");
@@ -76,20 +60,20 @@ export default function AccountPage({
     onLogout?.();
   };
 
-  const userId = identity?.getPrincipal().toString();
-  const myRecharges = (recharges ?? [])
-    .filter((r: any) => r.userId.toString() === userId)
-    .slice(-5)
-    .reverse();
-
-  const myWithdrawals = (withdrawals ?? [])
-    .filter((w: any) => w.userId.toString() === userId)
-    .slice(-5)
-    .reverse();
+  // Get referral code from accounts store
+  const getReferral = () => {
+    try {
+      const raw = localStorage.getItem("pb_accounts");
+      if (!raw) return "";
+      const accounts = JSON.parse(raw);
+      return accounts[phone]?.referral || "";
+    } catch {
+      return "";
+    }
+  };
 
   return (
     <div className="pb-4">
-      {/* Profile Header */}
       <div className="green-gradient px-5 pt-6 pb-10">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
@@ -98,21 +82,20 @@ export default function AccountPage({
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-white font-bold text-lg">
-                {profile?.phone || "FIFA Member"}
+                {phone || "FIFA Member"}
               </h2>
               <span className="bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
                 VIP 1
               </span>
             </div>
             <p className="text-white/60 text-xs mt-0.5">
-              Code: {profile?.referralCode}
+              Code: {getReferral()}
             </p>
           </div>
         </div>
       </div>
 
       <div className="px-4 -mt-5 space-y-4">
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
           <StatCard
             label="Balance"
@@ -121,7 +104,10 @@ export default function AccountPage({
           />
           <StatCard
             label="Recharge"
-            value={`₹${(profile?.totalRecharged ?? 0).toFixed(0)}`}
+            value={`₹${myRecharges
+              .filter((r) => r.status === "completed")
+              .reduce((s, r) => s + r.amount, 0)
+              .toFixed(0)}`}
             icon={<BanknoteIcon className="w-4 h-4" />}
           />
           <StatCard
@@ -131,34 +117,33 @@ export default function AccountPage({
           />
         </div>
 
-        {/* Menu List */}
         <div className="bg-card rounded-2xl card-shadow overflow-hidden">
           <MenuItem
-            icon={"💳"}
+            icon="💳"
             label="Personal Information"
             onClick={() => onNavigate("personal-info")}
             ocid="account.personal.button"
           />
           <MenuItem
-            icon={"🏦"}
+            icon="🏦"
             label="Bank Card Binding"
             onClick={() => onNavigate("bank")}
             ocid="account.bank.button"
           />
           <MenuItem
-            icon={"📱"}
+            icon="📱"
             label="My Devices"
             onClick={() => toast.info("Coming soon")}
             ocid="account.devices.button"
           />
           <MenuItem
-            icon={"📊"}
+            icon="📊"
             label="Income Details"
             onClick={() => toast.info("Coming soon")}
             ocid="account.income.button"
           />
           <MenuItem
-            icon={"ℹ️"}
+            icon="ℹ️"
             label="About Us"
             onClick={() => toast.info("Version 1.0.0")}
             ocid="account.about.button"
@@ -176,16 +161,7 @@ export default function AccountPage({
               Recharge History
             </span>
           </div>
-          {rechargesLoading ? (
-            <div
-              className="px-4 py-3 space-y-2"
-              data-ocid="account.recharge.loading_state"
-            >
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : myRecharges.length === 0 ? (
+          {myRecharges.length === 0 ? (
             <div
               className="px-4 py-6 text-center text-muted-foreground text-sm"
               data-ocid="account.recharge.empty_state"
@@ -194,15 +170,15 @@ export default function AccountPage({
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {myRecharges.map((r: any, idx: number) => (
+              {myRecharges.map((r, idx) => (
                 <div
-                  key={r.id?.toString() ?? idx}
+                  key={r.id}
                   className="flex items-center justify-between px-4 py-3"
                   data-ocid={`account.recharge.item.${idx + 1}`}
                 >
                   <div>
                     <p className="text-sm font-semibold text-foreground">
-                      ₹{Number(r.amount).toFixed(0)}
+                      ₹{r.amount.toFixed(0)}
                     </p>
                     <p className="text-xs text-muted-foreground truncate max-w-[160px]">
                       {r.paymentRef}
@@ -226,16 +202,7 @@ export default function AccountPage({
               Withdrawal History
             </span>
           </div>
-          {withdrawalsLoading ? (
-            <div
-              className="px-4 py-3 space-y-2"
-              data-ocid="account.withdrawal.loading_state"
-            >
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : myWithdrawals.length === 0 ? (
+          {myWithdrawals.length === 0 ? (
             <div
               className="px-4 py-6 text-center text-muted-foreground text-sm"
               data-ocid="account.withdrawal.empty_state"
@@ -244,15 +211,15 @@ export default function AccountPage({
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {myWithdrawals.map((w: any, idx: number) => (
+              {myWithdrawals.map((w, idx) => (
                 <div
-                  key={w.id?.toString() ?? idx}
+                  key={w.id}
                   className="flex items-center justify-between px-4 py-3"
                   data-ocid={`account.withdrawal.item.${idx + 1}`}
                 >
                   <div>
                     <p className="text-sm font-semibold text-foreground">
-                      ₹{Number(w.amount).toFixed(0)}
+                      ₹{w.amount.toFixed(0)}
                     </p>
                     <p className="text-xs text-muted-foreground truncate max-w-[160px]">
                       {w.paymentDetails}
@@ -265,8 +232,7 @@ export default function AccountPage({
           )}
         </div>
 
-        {/* Admin Panel */}
-        {(isAdmin || hasAdminUrl) && (
+        {hasAdminUrl && (
           <Button
             onClick={() => onNavigate("admin")}
             variant="outline"
@@ -277,7 +243,6 @@ export default function AccountPage({
           </Button>
         )}
 
-        {/* Logout */}
         <button
           type="button"
           onClick={handleLogout}
@@ -295,25 +260,15 @@ export default function AccountPage({
   );
 }
 
-function StatusBadge({ status }: { status: any }) {
-  const s = Array.isArray(status)
-    ? Object.keys(status[0] ?? {})[0]
-    : typeof status === "object"
-      ? Object.keys(status)[0]
-      : String(status);
-  if (s === "completed" || s === "Completed") {
+function StatusBadge({ status }: { status: string }) {
+  if (status === "completed" || status === "approved") {
     return (
       <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">
         Completed
       </Badge>
     );
   }
-  if (
-    s === "failed" ||
-    s === "Failed" ||
-    s === "rejected" ||
-    s === "Rejected"
-  ) {
+  if (status === "failed" || status === "rejected") {
     return (
       <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">
         Failed
@@ -348,12 +303,7 @@ function MenuItem({
   label,
   onClick,
   ocid,
-}: {
-  icon: string;
-  label: string;
-  onClick: () => void;
-  ocid: string;
-}) {
+}: { icon: string; label: string; onClick: () => void; ocid: string }) {
   return (
     <button
       type="button"
