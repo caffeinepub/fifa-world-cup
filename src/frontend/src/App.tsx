@@ -45,16 +45,17 @@ const adminParam = new URLSearchParams(window.location.search).get("admin");
 if (adminParam === "Aliraza5234") {
   sessionStorage.setItem("adminAccess", "1");
 }
-const isAdminSession = sessionStorage.getItem("adminAccess") === "1";
-const alreadyLoggedIn =
+
+const isAdminSession = () => sessionStorage.getItem("adminAccess") === "1";
+const alreadyLoggedIn = () =>
   !!localStorage.getItem("pb_current_phone") ||
   !!localStorage.getItem("pb_phone");
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => alreadyLoggedIn);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => alreadyLoggedIn());
   const { data: _userProfile } = useUserProfile();
-  const [currentPage, setCurrentPage] = useState<Page>(
-    isAdminSession && alreadyLoggedIn ? "admin" : "home",
+  const [currentPage, setCurrentPage] = useState<Page>(() =>
+    isAdminSession() && alreadyLoggedIn() ? "admin" : "home",
   );
   const [authView, setAuthView] = useState<"login" | "register">("login");
   const [showWelcome, setShowWelcome] = useState(false);
@@ -96,7 +97,7 @@ export default function App() {
             onSwitchView={setAuthView}
             onLogin={(_phone: string) => {
               setIsLoggedIn(true);
-              if (isAdminSession) setCurrentPage("admin");
+              if (isAdminSession()) setCurrentPage("admin");
             }}
           />
         </Suspense>
@@ -172,7 +173,7 @@ export default function App() {
       </div>
 
       {/* Floating admin shortcut - one tap from anywhere */}
-      {isAdminSession && currentPage !== "admin" && (
+      {isAdminSession() && currentPage !== "admin" && (
         <button
           type="button"
           onClick={() => setCurrentPage("admin")}
